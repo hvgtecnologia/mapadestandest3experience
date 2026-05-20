@@ -180,13 +180,12 @@ export const corridors: Corridor[] = [
 // ============================================================
 //  ANOTAÇÕES
 //  Posições calculadas com base nas constantes do layout:
-//    COL1_L=32, COL1_T=110, CW=72, CH=50, BP=4, CG=2
-//    Stand 01: x=36, y=114  (row 0)
-//    Stand 14: y = 110 + 4 + 13*(50+2) = 790  (row 13)
-//    Col1 center x = 32 + 4 + 36 = 72
+//    COL1_L=32, COLR_L=838, COLR_T=110, CW=72, CH=50, BP=4
+//    Stand 01 centro x = 32+4+36 = 72 | y topo = 110
+//    Stand 114 centro x = 838+4+36 = 878 | y topo = 110
 // ============================================================
 export const annotations: MapAnnotation[] = [
-    // Label ARQUIBANCADA vertical
+    // Label ARQUIBANCADA vertical (linha vermelha lateral)
     {
         type: 'text',
         label: 'ARQUIBANCADA / SAÍDAS →',
@@ -196,21 +195,21 @@ export const annotations: MapAnnotation[] = [
         fontSize: 11,
         color: '#e74c3c',
     },
-    // ── ENTRADA — acima do stand 01 (topo col esquerda) ──
+    // ── ENTRADA — acima do stand 01 (topo col esquerda, início do corredor) ──
     {
         type: 'entrance',
         label: '↩ ENTRADA',
-        x: 72,          // centro da col1
-        y: 92,          // acima do bloco (110 - 18)
+        x: 72,          // centro da col1 (32+4+36)
+        y: 90,          // acima do bloco (110 - 20)
         fontSize: 11,
         color: '#22c55e',
     },
-    // ── SAÍDA / PRAÇA DE ALIMENTAÇÃO — abaixo do stand 14 ──
+    // ── SAÍDA / PRAÇA DE ALIMENTAÇÃO — acima do stand 114 (final do corredor) ──
     {
         type: 'entrance',
         label: 'SAÍDA / PRAÇA DE ALIMENTAÇÃO ↪',
-        x: 250,         // centralizado entre col1 e tira inferior
-        y: 904,         // abaixo da tira inferior (836 + 58 + 10)
+        x: 878,         // centro da col-right (838+4+36)
+        y: 90,          // mesma altura da ENTRADA
         fontSize: 10,
         color: '#f97316',
     },

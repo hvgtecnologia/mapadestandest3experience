@@ -10,14 +10,17 @@ interface StandModalProps {
     onClose: () => void;
     onSave: (id: string, updates: Partial<Stand>) => Promise<{ success: boolean; error?: string }>;
     isAdmin?: boolean;
+    existingNumeros?: number[];   // lista de números em uso (para validar edição)
 }
 
-export default function StandModal({ stand, isOpen, onClose, onSave, isAdmin = false }: StandModalProps) {
+export default function StandModal({ stand, isOpen, onClose, onSave, isAdmin = false, existingNumeros = [] }: StandModalProps) {
     const [status, setStatus] = useState<StandStatus>('disponivel');
     const [empresa, setEmpresa] = useState('');
     const [tipo, setTipo] = useState<StandType>('prata');
     const [numero, setNumero] = useState<number>(0);
+    const [numeroInput, setNumeroInput] = useState<string>('');
     const [saving, setSaving] = useState(false);
+    const [numeroError, setNumeroError] = useState('');
 
     useEffect(() => {
         if (stand) {
@@ -25,28 +28,46 @@ export default function StandModal({ stand, isOpen, onClose, onSave, isAdmin = f
             setEmpresa(stand.empresa || '');
             setTipo(stand.tipo);
             setNumero(stand.numero);
+            setNumeroInput(String(stand.numero));
+            setNumeroError('');
         }
     }, [stand]);
 
     if (!isOpen || !stand) return null;
+
+    const handleNumeroChange = (val: string) => {
+        setNumeroInput(val);
+        const n = parseInt(val, 10);
+        if (isNaN(n) || n < 1) {
+            setNumeroError('Número inválido');
+        } else if (n !== stand.numero && existingNumeros.includes(n)) {
+            setNumeroError(`Stand ${n} já existe no mapa`);
+        } else {
+            setNumeroError('');
+            setNumero(n);
+        }
+    };
 
     const handleSave = async () => {
         if (!empresa.trim() && !isAdmin) {
             alert('Por favor, informe o nome da sua empresa para reservar.');
             return;
         }
+        if (isAdmin && numeroError) {
+            alert(numeroError);
+            return;
+        }
 
         setSaving(true);
-        // Se não for admin, a ação padrão é reservar
         const finalStatus = isAdmin ? status : 'reservado';
-        const result = await onSave(stand.id, { 
-            status: finalStatus, 
-            empresa: empresa || null, 
-            tipo, 
-            numero 
+        const result = await onSave(stand.id, {
+            status: finalStatus,
+            empresa: empresa || null,
+            tipo,
+            numero,
         });
         setSaving(false);
-        
+
         if (result.success) {
             onClose();
         } else {
@@ -102,16 +123,31 @@ export default function StandModal({ stand, isOpen, onClose, onSave, isAdmin = f
                         <>
                             {/* Número do Stand */}
                             <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-2">
-                                    Número do Stand
+                                <label className="block text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
+                                    ✏️ Número do Stand
+                                    {numero !== stand.numero && !numeroError && (
+                                        <span className="text-xs text-green-400 font-normal">← modificado</span>
+                                    )}
                                 </label>
                                 <input
                                     type="number"
-                                    value={numero}
-                                    onChange={(e) => setNumero(parseInt(e.target.value, 10) || 0)}
+                                    value={numeroInput}
+                                    onChange={(e) => handleNumeroChange(e.target.value)}
                                     min={1}
-                                    className="w-full bg-gray-800 border border-gray-600 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none"
+                                    className={`w-full bg-gray-800 border rounded-xl px-4 py-3 text-white focus:ring-2 focus:border-transparent transition-all outline-none ${
+                                        numeroError
+                                            ? 'border-red-500 focus:ring-red-500'
+                                            : numero !== stand.numero
+                                            ? 'border-green-500 focus:ring-green-500'
+                                            : 'border-gray-600 focus:ring-blue-500'
+                                    }`}
                                 />
+                                {numeroError && (
+                                    <p className="text-red-400 text-xs mt-1">⚠ {numeroError}</p>
+                                )}
+                                {!numeroError && numero !== stand.numero && (
+                                    <p className="text-green-400 text-xs mt-1">Stand será renumerado de {stand.numero} → {numero}</p>
+                                )}
                             </div>
 
                             {/* Status select */}

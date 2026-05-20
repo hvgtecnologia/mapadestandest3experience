@@ -426,13 +426,29 @@ export default function StandMap({ stands, onStandClick, selectedStandId }: Stan
                                 strokeOpacity={0.6}
                                 strokeDasharray={area.id === 'arquibancada-label-area' ? '3 3' : undefined}
                             />
-                            {area.id.startsWith('bath') && (
-                                <path
-                                    d={`M ${area.x + 4} ${area.y + 4} l ${area.width - 8} ${area.height - 8} M ${area.x + area.width - 4} ${area.y + 4} l ${-area.width + 8} ${area.height - 8}`}
-                                    stroke={area.color}
-                                    strokeWidth={0.5}
-                                    opacity={0.2}
-                                />
+                            {/* WC — hachurado + label */}
+                            {area.id.startsWith('wc-') && (
+                                <>
+                                    <path
+                                        d={`M ${area.x + 3} ${area.y + 3} l ${area.width - 6} ${area.height - 6} M ${area.x + area.width - 3} ${area.y + 3} l ${-(area.width - 6)} ${area.height - 6}`}
+                                        stroke={area.color}
+                                        strokeWidth={0.8}
+                                        opacity={0.35}
+                                    />
+                                    <text
+                                        x={area.x + area.width / 2}
+                                        y={area.y + area.height / 2}
+                                        textAnchor="middle"
+                                        dominantBaseline="central"
+                                        fill={area.textColor || '#94a3b8'}
+                                        fontSize={area.fontSize || 10}
+                                        fontWeight="bold"
+                                        opacity={0.8}
+                                        className="select-none pointer-events-none"
+                                    >
+                                        WC
+                                    </text>
+                                </>
                             )}
                             {area.id === 'arquibancada-label-area' && (
                                 <text
@@ -449,7 +465,7 @@ export default function StandMap({ stands, onStandClick, selectedStandId }: Stan
                                     ARQUIBANCADA / SAÍDAS →
                                 </text>
                             )}
-                            {area.label && area.label.split('\n').map((line, li) => (
+                            {area.label && !area.id.startsWith('wc-') && area.id !== 'arquibancada-label-area' && area.label.split('\n').map((line, li) => (
                                 <text
                                     key={`${area.id}-${li}`}
                                     x={area.x + area.width / 2}

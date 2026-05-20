@@ -251,6 +251,7 @@ export default function AdminPage() {
                 onClose={handleCloseModal}
                 onSave={updateStand}
                 isAdmin={true}
+                existingNumeros={stands.map(s => s.numero)}
             />
         </div>
     );

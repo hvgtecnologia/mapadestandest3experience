@@ -287,25 +287,7 @@ export default function StandMap({ stands, onStandClick, selectedStandId }: Stan
                     )}
                 </div>
 
-                {/* Image toggle + opacity */}
-                <div className="flex items-center gap-2">
-                    <button
-                        onClick={() => setShowImage(!showImage)}
-                        className={`px-2 py-1.5 rounded-lg text-xs font-bold transition-all border ${showImage ? 'bg-blue-600/80 border-blue-500 text-white' : 'bg-gray-800 border-gray-600 text-gray-400'}`}
-                        title="Mostrar/esconder imagem de referência"
-                    >
-                        📄 Ref
-                    </button>
-                    {showImage && (
-                        <input
-                            type="range"
-                            min={10} max={100} value={Math.round(overlayOpacity * 100)}
-                            onChange={e => setOverlayOpacity(Number(e.target.value) / 100)}
-                            className="w-16 h-1 accent-amber-500"
-                            title="Opacidade da imagem"
-                        />
-                    )}
-                </div>
+
 
                 {/* Zoom controls */}
                 <div className="flex items-center gap-1">

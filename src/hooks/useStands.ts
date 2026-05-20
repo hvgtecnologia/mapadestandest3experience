@@ -15,12 +15,12 @@ export function useStands() {
     const getStands = useCallback(async () => {
         if (USE_MOCK) {
             // Use mock data if Supabase is not configured
-            const stored = localStorage.getItem('mock-stands');
+            const stored = localStorage.getItem('mock-stands-v2');
             if (stored) {
                 setStands(JSON.parse(stored));
             } else {
                 const mock = generateMockStands();
-                localStorage.setItem('mock-stands', JSON.stringify(mock));
+                localStorage.setItem('mock-stands-v2', JSON.stringify(mock));
                 setStands(mock);
             }
             setLoading(false);
@@ -49,7 +49,7 @@ export function useStands() {
                 const updated = prev.map(s =>
                     s.id === id ? { ...s, ...updates, updated_at: new Date().toISOString() } : s
                 );
-                localStorage.setItem('mock-stands', JSON.stringify(updated));
+                localStorage.setItem('mock-stands-v2', JSON.stringify(updated));
                 return updated;
             });
             return { success: true };

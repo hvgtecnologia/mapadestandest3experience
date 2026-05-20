@@ -120,15 +120,7 @@ export const annotations: MapAnnotation[] = [];
 
 // Função auxiliar para determinar o tipo padrão do stand para o mockup
 const getTipoDefault = (n: number): StandType => {
-    if (n >= 101 && n <= 114) return 'bronze'; // arquibancadas
-    if (n >= 1 && n <= 10) return 'ouro';
-    if (n === 11 || n === 12 || n === 44 || n === 58 || n === 59 || n === 60 || n === 61 || n === 62 || n === 63 || n === 64 || n === 31 || n === 32 || n === 73 || n === 74 || n === 75) return 'ouro';
-    if (n >= 76 && n <= 84) return 'master';
-    if (n >= 85 && n <= 92) return 'prata';
-    if (n >= 15 && n <= 25) return 'bronze';
-    if (n >= 93 && n <= 99) return 'bronze';
-    if (n >= 26 && n <= 30) return 'prata';
-    return 'prata';
+    return 'prata'; // Todos da mesma categoria por padrão (depois trocamos)
 };
 
 LAYOUT.forEach((row, rowIndex) => {
@@ -136,8 +128,49 @@ LAYOUT.forEach((row, rowIndex) => {
     const height = ROW_HEIGHT;
 
     row.forEach((cell, colIndex) => {
-        const x = getColX(colIndex);
-        const width = colWidths[colIndex];
+        let x = getColX(colIndex);
+        let width = colWidths[colIndex];
+
+        // Lógica especial para a linha 15: uniformizar todos os stands em 80px e W.C. em 40px
+        if (rowIndex === 15) {
+            if (colIndex === 0) {
+                x = 40;
+                width = 40;
+            } else if (colIndex === 1) {
+                x = 80;
+                width = 80;
+            } else if (colIndex === 2) {
+                x = 160;
+                width = 80;
+            } else if (colIndex === 3) {
+                x = 240;
+                width = 80;
+            } else if (colIndex === 4) {
+                x = 320;
+                width = 80;
+            } else if (colIndex === 5) {
+                x = 400;
+                width = 40;
+            } else if (colIndex === 6) {
+                x = 440;
+                width = 40;
+            } else if (colIndex === 7) {
+                x = 480;
+                width = 80;
+            } else if (colIndex === 8) {
+                x = 560;
+                width = 80;
+            } else if (colIndex === 9) {
+                x = 640;
+                width = 80;
+            } else if (colIndex === 10) {
+                x = 720;
+                width = 80;
+            } else if (colIndex === 11) {
+                x = 800;
+                width = 40;
+            }
+        }
 
         if (cell.t === 'stand') {
             standPositions.push({
@@ -151,7 +184,7 @@ LAYOUT.forEach((row, rowIndex) => {
         } else if (cell.t === 'bleach') {
             standPositions.push({
                 numero: cell.n!,
-                tipo: 'bronze', // styled specially as bleach
+                tipo: 'prata', // todos da mesma categoria!
                 x: x + 3,
                 y: y + 3,
                 width: width - 6,
@@ -218,27 +251,13 @@ specialAreas.push({
 // GERADOR DE MOCK DATA
 // ============================================
 export function generateMockStands(): Stand[] {
-    const statuses: Stand['status'][] = ['disponivel', 'reservado', 'vendido'];
-    const empresas = [
-        'Tech Solutions', 'Digital Wave', 'InnovateTech', 'Smart Systems',
-        'DataFlow', 'CloudPeak', 'NetBridge', 'CodeForge',
-        'CyberCore', 'PixelHub', 'LogiTech Pro', 'MegaByte',
-    ];
-
-    return standPositions.map((pos, i) => {
-        // Arquibancadas começam 80% disponíveis por padrão
-        const isBleach = pos.numero >= 101;
-        const randomStatus = isBleach 
-            ? (Math.random() > 0.8 ? 'vendido' : 'disponivel')
-            : statuses[Math.floor(Math.random() * 3)];
-
+    return standPositions.map((pos) => {
         return {
             id: `stand-${pos.numero}`,
             numero: pos.numero,
-            status: randomStatus,
-            empresa: randomStatus === 'vendido' ? empresas[i % empresas.length] :
-                randomStatus === 'reservado' ? empresas[(i + 3) % empresas.length] : null,
-            tipo: pos.tipo,
+            status: 'disponivel', // todos livres, sem reserva
+            empresa: null,
+            tipo: 'prata', // todos da mesma categoria
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
         };

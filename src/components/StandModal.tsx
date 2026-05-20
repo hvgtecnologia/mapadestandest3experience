@@ -71,7 +71,12 @@ export default function StandModal({ stand, isOpen, onClose, onSave, isAdmin = f
         if (result.success) {
             onClose();
         } else {
-            alert(`Falha ao salvar: ${result.error || 'Erro desconhecido'}`);
+            const msg = result.error || 'Erro desconhecido';
+            const isRlsError = msg.includes('permission') || msg.includes('policy') || msg.includes('RLS') || msg.includes('violates');
+            alert(isRlsError
+                ? '❌ Sem permissão para salvar.\n\nPeça ao administrador para executar o setup-rls.sql no painel Supabase.'
+                : `❌ Falha ao salvar: ${msg}`
+            );
         }
     };
 

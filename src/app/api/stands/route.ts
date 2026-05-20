@@ -1,5 +1,12 @@
 import { NextResponse } from 'next/server';
-import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { createClient } from '@supabase/supabase-js';
+
+// Usa o cliente público (anon key) — requer policy RLS UPDATE na tabela stands
+function getSupabasePublic() {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+    return createClient(url, key);
+}
 
 export async function POST(req: Request) {
     try {
@@ -10,10 +17,8 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'ID inválido', success: false }, { status: 400 });
         }
 
-        // Validação sanitizada simples aqui (ideal usar Zod, conforme H-Regras-de-seguranca.md)
-        // Regra de Ouro: Frontend nunca atualiza diretamente via client o banco!!
-        const supabaseAdmin = getSupabaseAdmin();
-        const { data, error } = await supabaseAdmin
+        const supabase = getSupabasePublic();
+        const { data, error } = await supabase
             .from('stands')
             .update({ ...updates, updated_at: new Date().toISOString() })
             .eq('id', id)
@@ -22,7 +27,7 @@ export async function POST(req: Request) {
 
         if (error) {
             console.error('DB Update Error:', error);
-            return NextResponse.json({ error: 'Erro interno', success: false }, { status: 500 });
+            return NextResponse.json({ error: error.message, success: false }, { status: 500 });
         }
 
         return NextResponse.json({ success: true, data });

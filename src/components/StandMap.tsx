@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { Stand } from '@/types/stand';
-import { standPositions, specialAreas, corridors, annotations } from '@/data/mapLayout';
+import { standPositions, specialAreas, corridors, annotations, SVG_W, SVG_H } from '@/data/mapLayout';
 import { standTypeLabels } from '@/utils/standColors';
 import StandItem from './StandItem';
 
@@ -12,10 +12,8 @@ interface StandMapProps {
     selectedStandId?: string | null;
 }
 
-const MIN_ZOOM = 0.5;
+const MIN_ZOOM = 0.4;
 const MAX_ZOOM = 4;
-const SVG_W = 985;
-const SVG_H = 930;
 
 export default function StandMap({ stands, onStandClick, selectedStandId }: StandMapProps) {
     const containerRef = useRef<HTMLDivElement>(null);
@@ -23,7 +21,7 @@ export default function StandMap({ stands, onStandClick, selectedStandId }: Stan
 
     /* ── state ── */
     const [tooltip, setTooltip] = useState<{ x: number; y: number; stand: Stand } | null>(null);
-    const [zoom, setZoom] = useState(1);
+    const [zoom, setZoom] = useState(0.85);
     const [pan, setPan] = useState({ x: 0, y: 0 });
     const [isPanning, setIsPanning] = useState(false);
     const panStartRef = useRef({ x: 0, y: 0 });
@@ -32,6 +30,10 @@ export default function StandMap({ stands, onStandClick, selectedStandId }: Stan
     // Search
     const [searchQuery, setSearchQuery] = useState('');
     const [highlightedStand, setHighlightedStand] = useState<number | null>(null);
+
+    // Show/hide image overlay
+    const [showImage, setShowImage] = useState(false);
+    const [overlayOpacity, setOverlayOpacity] = useState(0.5);
 
     // Touch state
     const lastTouchDistRef = useRef<number | null>(null);
@@ -49,7 +51,7 @@ export default function StandMap({ stands, onStandClick, selectedStandId }: Stan
         return svgContainerRef.current?.getBoundingClientRect() ?? null;
     }, []);
 
-    /* ── Clamp pan to keep map in view ── */
+    /* ── Clamp pan ── */
     const clampPan = useCallback((px: number, py: number, z: number) => {
         const container = svgContainerRef.current;
         if (!container) return { x: px, y: py };
@@ -103,31 +105,25 @@ export default function StandMap({ stands, onStandClick, selectedStandId }: Stan
 
     const handleZoomIn = () => {
         const rect = getSvgRect();
-        if (rect) {
-            zoomAtPoint(zoom + 0.3, rect.left + rect.width / 2, rect.top + rect.height / 2);
-        }
+        if (rect) zoomAtPoint(zoom + 0.25, rect.left + rect.width / 2, rect.top + rect.height / 2);
     };
     const handleZoomOut = () => {
         const rect = getSvgRect();
         if (rect) {
-            const newZoom = zoom - 0.3;
-            if (newZoom <= 1) {
-                setZoom(Math.max(MIN_ZOOM, newZoom));
-                setPan({ x: 0, y: 0 });
-            } else {
-                zoomAtPoint(newZoom, rect.left + rect.width / 2, rect.top + rect.height / 2);
-            }
+            const nz = zoom - 0.1;
+            if (nz <= 0.85) { setZoom(0.85); setPan({ x: 0, y: 0 }); }
+            else zoomAtPoint(nz, rect.left + rect.width / 2, rect.top + rect.height / 2);
         }
     };
-    const handleZoomReset = () => { setZoom(1); setPan({ x: 0, y: 0 }); };
+    const handleZoomReset = () => { setZoom(0.85); setPan({ x: 0, y: 0 }); };
 
-    /* ── Wheel zoom (attached via useEffect for passive:false) ── */
+    /* ── Wheel zoom ── */
     useEffect(() => {
         const el = svgContainerRef.current;
         if (!el) return;
         const onWheel = (e: WheelEvent) => {
             e.preventDefault();
-            const delta = e.deltaY > 0 ? -0.12 : 0.12;
+            const delta = e.deltaY > 0 ? -0.1 : 0.1;
             const rect = el.getBoundingClientRect();
             const cx = e.clientX - rect.left - rect.width / 2;
             const cy = e.clientY - rect.top - rect.height / 2;
@@ -137,7 +133,7 @@ export default function StandMap({ stands, onStandClick, selectedStandId }: Stan
                 setPan(prevPan => {
                     const nx = cx - scale * (cx - prevPan.x);
                     const ny = cy - scale * (cy - prevPan.y);
-                    if (newZoom <= 1) return { x: 0, y: 0 };
+                    if (newZoom <= 0.85) return { x: 0, y: 0 };
                     return { x: nx, y: ny };
                 });
                 return newZoom;
@@ -149,7 +145,7 @@ export default function StandMap({ stands, onStandClick, selectedStandId }: Stan
 
     /* ── Mouse pan ── */
     const handleMouseDown = useCallback((e: React.MouseEvent) => {
-        if (zoom > 1) {
+        if (zoom > 0.85) {
             e.preventDefault();
             setIsPanning(true);
             panStartRef.current = { x: e.clientX - pan.x, y: e.clientY - pan.y };
@@ -161,19 +157,15 @@ export default function StandMap({ stands, onStandClick, selectedStandId }: Stan
         if (isPanning) {
             const nx = e.clientX - panStartRef.current.x;
             const ny = e.clientY - panStartRef.current.y;
-            const clamped = clampPan(nx, ny, zoom);
-            setPan(clamped);
+            setPan(clampPan(nx, ny, zoom));
         }
     }, [isPanning, zoom, clampPan]);
 
-    const handleMouseUp = useCallback(() => {
-        setIsPanning(false);
-    }, []);
+    const handleMouseUp = useCallback(() => { setIsPanning(false); }, []);
 
     /* ── Touch handlers ── */
     const handleTouchStart = useCallback((e: React.TouchEvent) => {
         if (e.touches.length === 2) {
-            // Pinch start
             const dx = e.touches[0].clientX - e.touches[1].clientX;
             const dy = e.touches[0].clientY - e.touches[1].clientY;
             lastTouchDistRef.current = Math.hypot(dx, dy);
@@ -182,10 +174,9 @@ export default function StandMap({ stands, onStandClick, selectedStandId }: Stan
                 y: (e.touches[0].clientY + e.touches[1].clientY) / 2,
             };
         } else if (e.touches.length === 1) {
-            // Single finger drag or tap
             touchStartTimeRef.current = Date.now();
             touchStartPosRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-            if (zoom > 1) {
+            if (zoom > 0.85) {
                 setIsPanning(true);
                 panStartRef.current = { x: e.touches[0].clientX - pan.x, y: e.touches[0].clientY - pan.y };
             }
@@ -200,51 +191,35 @@ export default function StandMap({ stands, onStandClick, selectedStandId }: Stan
             const dist = Math.hypot(dx, dy);
             const centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
             const centerY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-
             if (lastTouchDistRef.current !== null) {
                 const scale = dist / lastTouchDistRef.current;
-                const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom * scale));
-                zoomAtPoint(newZoom, centerX, centerY);
+                zoomAtPoint(Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom * scale)), centerX, centerY);
             }
             lastTouchDistRef.current = dist;
             lastTouchCenterRef.current = { x: centerX, y: centerY };
-        } else if (e.touches.length === 1 && isPanning && zoom > 1) {
+        } else if (e.touches.length === 1 && isPanning && zoom > 0.85) {
             const nx = e.touches[0].clientX - panStartRef.current.x;
             const ny = e.touches[0].clientY - panStartRef.current.y;
-            const clamped = clampPan(nx, ny, zoom);
-            setPan(clamped);
+            setPan(clampPan(nx, ny, zoom));
         }
     }, [zoom, isPanning, zoomAtPoint, clampPan]);
 
-    const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    const handleTouchEnd = useCallback(() => {
         lastTouchDistRef.current = null;
         lastTouchCenterRef.current = null;
-        if (e.touches.length === 0) {
-            setIsPanning(false);
-            // Detect tap (not drag) for tooltip on mobile
-            if (touchStartPosRef.current) {
-                const elapsed = Date.now() - touchStartTimeRef.current;
-                if (elapsed < 300) {
-                    // It was a tap — handled by click on StandItem
-                }
-            }
-        }
+        setIsPanning(false);
     }, []);
 
     /* ── Search ── */
     const searchResults = useMemo(() => {
         if (!searchQuery.trim()) return [];
         const q = searchQuery.toLowerCase().trim();
-        // Search by number
         const num = parseInt(q, 10);
         if (!isNaN(num)) {
             const stand = stands.find(s => s.numero === num);
             return stand ? [stand] : [];
         }
-        // Search by company name
-        return stands.filter(s =>
-            s.empresa?.toLowerCase().includes(q)
-        ).slice(0, 5);
+        return stands.filter(s => s.empresa?.toLowerCase().includes(q)).slice(0, 5);
     }, [searchQuery, stands]);
 
     const focusOnStand = useCallback((numero: number) => {
@@ -255,14 +230,12 @@ export default function StandMap({ stands, onStandClick, selectedStandId }: Stan
         setZoom(targetZoom);
         const rect = getSvgRect();
         if (rect) {
-            // Center on stand position in SVG coordinates
             const standCenterX = (pos.x + pos.width / 2) / SVG_W;
             const standCenterY = (pos.y + pos.height / 2) / SVG_H;
             const panX = (0.5 - standCenterX) * rect.width * targetZoom;
             const panY = (0.5 - standCenterY) * rect.height * targetZoom;
             setPan(clampPan(panX, panY, targetZoom));
         }
-        // Clear highlight after 3 seconds
         setTimeout(() => setHighlightedStand(null), 3000);
     }, [getSvgRect, clampPan]);
 
@@ -278,23 +251,21 @@ export default function StandMap({ stands, onStandClick, selectedStandId }: Stan
         master: '#a855f7',
     };
 
-    /* ── Zoom percentage ── */
     const zoomPercent = Math.round(zoom * 100);
 
     return (
         <div ref={containerRef} className="relative w-full overflow-hidden bg-gray-950 rounded-2xl border border-gray-700/50 shadow-2xl">
-            {/* ═══ TOP BAR: Search + Zoom Controls ═══ */}
-            <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between gap-2 px-3 py-2 bg-gray-900/80 backdrop-blur-md border-b border-gray-700/30">
+            {/* ═══ TOP BAR ═══ */}
+            <div className="absolute top-0 left-0 right-0 z-20 flex flex-wrap items-center justify-between gap-2 px-3 py-2 bg-gray-900/90 backdrop-blur-md border-b border-gray-700/30">
                 {/* Search */}
-                <div className="relative flex-1 max-w-[220px]">
+                <div className="relative flex-1 min-w-[140px] max-w-[220px]">
                     <input
                         type="text"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         placeholder="🔍 Buscar stand..."
-                        className="w-full bg-gray-800/90 border border-gray-600/50 rounded-lg px-3 py-1.5 text-sm text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                        className="w-full bg-gray-800/90 border border-gray-600/50 rounded-lg px-3 py-1.5 text-sm text-white placeholder-gray-500 focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none transition-all"
                     />
-                    {/* Search dropdown */}
                     {searchQuery.trim() && searchResults.length > 0 && (
                         <div className="absolute top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-600/50 rounded-lg shadow-2xl overflow-hidden z-50">
                             {searchResults.map(s => (
@@ -303,8 +274,7 @@ export default function StandMap({ stands, onStandClick, selectedStandId }: Stan
                                     onClick={() => handleSearchSelect(s)}
                                     className="w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-gray-700 transition-colors flex items-center gap-2"
                                 >
-                                    <span className="font-bold text-white">#{String(s.numero).padStart(2, '0')}</span>
-                                    <span className="text-xs px-1.5 py-0.5 rounded bg-gray-600/50 capitalize">{s.tipo}</span>
+                                    <span className="font-bold text-amber-400">#{String(s.numero).padStart(2, '0')}</span>
                                     {s.empresa && <span className="text-gray-400 text-xs truncate">{s.empresa}</span>}
                                 </button>
                             ))}
@@ -317,51 +287,59 @@ export default function StandMap({ stands, onStandClick, selectedStandId }: Stan
                     )}
                 </div>
 
+                {/* Image toggle + opacity */}
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => setShowImage(!showImage)}
+                        className={`px-2 py-1.5 rounded-lg text-xs font-bold transition-all border ${showImage ? 'bg-blue-600/80 border-blue-500 text-white' : 'bg-gray-800 border-gray-600 text-gray-400'}`}
+                        title="Mostrar/esconder imagem de referência"
+                    >
+                        📄 Ref
+                    </button>
+                    {showImage && (
+                        <input
+                            type="range"
+                            min={10} max={100} value={Math.round(overlayOpacity * 100)}
+                            onChange={e => setOverlayOpacity(Number(e.target.value) / 100)}
+                            className="w-16 h-1 accent-amber-500"
+                            title="Opacidade da imagem"
+                        />
+                    )}
+                </div>
+
                 {/* Zoom controls */}
                 <div className="flex items-center gap-1">
                     <button
                         onClick={handleZoomOut}
                         className="w-8 h-8 rounded-lg bg-gray-800/90 hover:bg-gray-700 text-white flex items-center justify-center text-base font-bold border border-gray-600/50 transition-all active:scale-95"
-                        title="Diminuir zoom"
-                    >
-                        −
-                    </button>
-
-                    {/* Zoom bar */}
+                    >−</button>
                     <div className="hidden sm:flex items-center gap-1.5 px-1">
-                        <div className="w-20 h-1.5 bg-gray-700 rounded-full overflow-hidden relative">
+                        <div className="w-16 h-1.5 bg-gray-700 rounded-full overflow-hidden">
                             <div
-                                className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all duration-200"
+                                className="h-full bg-gradient-to-r from-amber-500 to-orange-500 rounded-full transition-all duration-200"
                                 style={{ width: `${((zoom - MIN_ZOOM) / (MAX_ZOOM - MIN_ZOOM)) * 100}%` }}
                             />
                         </div>
                     </div>
-
                     <button
                         onClick={handleZoomReset}
                         className="h-8 px-2 rounded-lg bg-gray-800/90 hover:bg-gray-700 text-white flex items-center justify-center text-xs font-bold border border-gray-600/50 transition-all active:scale-95 min-w-[44px]"
-                        title="Resetar zoom"
-                    >
-                        {zoomPercent}%
-                    </button>
-
+                    >{zoomPercent}%</button>
                     <button
                         onClick={handleZoomIn}
                         className="w-8 h-8 rounded-lg bg-gray-800/90 hover:bg-gray-700 text-white flex items-center justify-center text-base font-bold border border-gray-600/50 transition-all active:scale-95"
-                        title="Aumentar zoom"
-                    >
-                        +
-                    </button>
+                    >+</button>
                 </div>
             </div>
 
             {/* ═══ Map container ═══ */}
             <div
                 ref={svgContainerRef}
-                className="w-full overflow-hidden pt-11"
+                className="w-full overflow-hidden pt-12"
                 style={{
-                    cursor: zoom > 1 ? (isPanning ? 'grabbing' : 'grab') : 'default',
+                    cursor: zoom > 0.65 ? (isPanning ? 'grabbing' : 'grab') : 'default',
                     touchAction: 'none',
+                    background: '#0f172a',
                 }}
                 onMouseDown={handleMouseDown}
                 onMouseMove={handleMouseMove}
@@ -375,82 +353,114 @@ export default function StandMap({ stands, onStandClick, selectedStandId }: Stan
                     viewBox={`0 0 ${SVG_W} ${SVG_H}`}
                     className="w-full h-auto"
                     style={{
-                        maxHeight: '76vh',
+                        maxHeight: '82vh',
                         transform: `scale(${zoom}) translate(${pan.x / zoom}px, ${pan.y / zoom}px)`,
                         transformOrigin: 'center center',
-                        transition: isPanning ? 'none' : 'transform 0.25s ease-out',
+                        transition: isPanning ? 'none' : 'transform 0.2s ease-out',
                         willChange: 'transform',
                     }}
                 >
-                    {/* ═══ DEFS ═══ */}
                     <defs>
                         <linearGradient id="bg-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
                             <stop offset="0%" stopColor="#0c1222" />
-                            <stop offset="50%" stopColor="#111827" />
                             <stop offset="100%" stopColor="#0f172a" />
                         </linearGradient>
-                        <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse">
-                            <path d="M 24 0 L 0 0 0 24" fill="none" stroke="#1e293b" strokeWidth="0.3" opacity="0.4" />
+                        <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+                            <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#1e293b" strokeWidth="0.4" opacity="0.5" />
                         </pattern>
-                        {/* Highlight glow filter */}
                         <filter id="highlight-glow" x="-50%" y="-50%" width="200%" height="200%">
                             <feGaussianBlur stdDeviation="4" result="blur" />
-                            <feFlood floodColor="#3b82f6" floodOpacity="0.6" result="color" />
+                            <feFlood floodColor="#f59e0b" floodOpacity="0.7" result="color" />
                             <feComposite in="color" in2="blur" operator="in" result="glow" />
                             <feMerge>
                                 <feMergeNode in="glow" />
                                 <feMergeNode in="SourceGraphic" />
                             </feMerge>
                         </filter>
+                        {/* Clip to SVG bounds */}
+                        <clipPath id="svgClip">
+                            <rect width={SVG_W} height={SVG_H} />
+                        </clipPath>
                     </defs>
 
-                    {/* ═══ BACKGROUND ═══ */}
-                    <rect x="0" y="0" width={SVG_W} height={SVG_H} fill="url(#bg-gradient)" rx="12" />
-                    <rect width={SVG_W} height={SVG_H} fill="url(#grid)" rx="12" />
+                    {/* ─── BACKGROUND ─── */}
+                    <rect width={SVG_W} height={SVG_H} fill="url(#bg-gradient)" />
+                    <rect width={SVG_W} height={SVG_H} fill="url(#grid)" />
 
-                    {/* ═══ CORREDORES ═══ */}
+                    {/* ─── IMAGEM DE REFERÊNCIA (semitransparente) ─── */}
+                    {showImage && (
+                        <image
+                            href="/mapa_t3.png"
+                            x="0" y="0"
+                            width={SVG_W} height={SVG_H}
+                            opacity={overlayOpacity}
+                            clipPath="url(#svgClip)"
+                            style={{ mixBlendMode: 'luminosity' }}
+                        />
+                    )}
+
+                    {/* ─── CORREDORES ─── */}
                     {corridors.map((c, i) => (
                         <rect
                             key={`corridor-${i}`}
                             x={c.x} y={c.y}
                             width={c.width} height={c.height}
-                            rx={4}
-                            fill="#1d4ed8"
-                            opacity={0.18}
+                            fill="#0f172a"
+                            stroke="#1e293b"
+                            strokeWidth={0.5}
+                            opacity={0.7}
                         />
                     ))}
 
-                    {/* ═══ PÓRTICO DE ENTRADA ═══ */}
-                    <rect x="0" y="22" width="10" height="800" fill="#2563eb" opacity="0.35" rx="2" />
-                    <rect x="0" y="22" width="3" height="800" fill="#3b82f6" opacity="0.6" rx="1" />
-
-                    {/* ═══ ÁREAS ESPECIAIS ═══ */}
+                    {/* ─── ÁREAS ESPECIAIS ─── */}
                     {specialAreas.map((area) => (
                         <g key={area.id}>
                             <rect
                                 x={area.x} y={area.y}
                                 width={area.width} height={area.height}
-                                rx={area.borderRadius ?? 6}
+                                rx={area.borderRadius ?? 4}
                                 fill={area.color}
-                                opacity={0.15}
+                                opacity={area.id === 'arquibancada-label-area' ? 0.15 : 0.25}
                                 stroke={area.color}
                                 strokeWidth={1.5}
-                                strokeOpacity={0.4}
-                                strokeDasharray={area.id === 'expo' || area.id === 'praca' ? '6 3' : 'none'}
+                                strokeOpacity={0.6}
+                                strokeDasharray={area.id === 'arquibancada-label-area' ? '3 3' : undefined}
                             />
-                            {area.label.split('\n').map((line, li) => (
+                            {area.id.startsWith('bath') && (
+                                <path
+                                    d={`M ${area.x + 4} ${area.y + 4} l ${area.width - 8} ${area.height - 8} M ${area.x + area.width - 4} ${area.y + 4} l ${-area.width + 8} ${area.height - 8}`}
+                                    stroke={area.color}
+                                    strokeWidth={0.5}
+                                    opacity={0.2}
+                                />
+                            )}
+                            {area.id === 'arquibancada-label-area' && (
                                 <text
-                                    key={`${area.id}-line-${li}`}
                                     x={area.x + area.width / 2}
-                                    y={area.y + area.height / 2 + li * 14 - ((area.label.split('\n').length - 1) * 7)}
+                                    y={area.y + area.height / 2}
+                                    textAnchor="middle"
+                                    dominantBaseline="central"
+                                    fill="#f87171"
+                                    fontSize={13}
+                                    fontWeight="bold"
+                                    transform={`rotate(90, ${area.x + area.width / 2}, ${area.y + area.height / 2})`}
+                                    className="select-none pointer-events-none italic tracking-wider"
+                                >
+                                    ARQUIBANCADA / SAÍDAS →
+                                </text>
+                            )}
+                            {area.label && area.label.split('\n').map((line, li) => (
+                                <text
+                                    key={`${area.id}-${li}`}
+                                    x={area.x + area.width / 2}
+                                    y={area.y + area.height / 2 + li * 13 - ((area.label.split('\n').length - 1) * 6.5)}
                                     textAnchor="middle"
                                     dominantBaseline="central"
                                     fill={area.textColor || area.color}
                                     fontSize={area.fontSize || 10}
                                     fontWeight="bold"
-                                    opacity={0.7}
+                                    opacity={0.8}
                                     className="select-none pointer-events-none"
-                                    letterSpacing="0.5"
                                 >
                                     {line}
                                 </text>
@@ -458,26 +468,25 @@ export default function StandMap({ stands, onStandClick, selectedStandId }: Stan
                         </g>
                     ))}
 
-                    {/* ═══ ANOTAÇÕES ═══ */}
+                    {/* ─── ANOTAÇÕES ─── */}
                     {annotations.map((a, i) => (
                         <text
-                            key={`annotation-${i}`}
+                            key={`ann-${i}`}
                             x={a.x} y={a.y}
                             textAnchor="middle"
                             dominantBaseline="central"
                             fill={a.color || '#94a3b8'}
                             fontSize={a.fontSize || 9}
                             fontWeight={a.type === 'entrance' ? 'bold' : 'normal'}
-                            opacity={a.type === 'entrance' ? 0.7 : 0.6}
+                            opacity={0.8}
                             transform={a.rotation ? `rotate(${a.rotation}, ${a.x}, ${a.y})` : undefined}
-                            className="select-none pointer-events-none"
-                            letterSpacing={a.type === 'entrance' ? '2' : '0.5'}
+                            className="select-none pointer-events-none tracking-wide"
                         >
                             {a.label}
                         </text>
                     ))}
 
-                    {/* ═══ STANDS ═══ */}
+                    {/* ─── STANDS ─── */}
                     {standPositions.map((pos) => {
                         const stand = getStandByNumero(pos.numero);
                         return (
@@ -498,22 +507,22 @@ export default function StandMap({ stands, onStandClick, selectedStandId }: Stan
                         );
                     })}
 
-                    {/* ═══ BORDA ═══ */}
-                    <rect x="1" y="1" width={SVG_W - 2} height={SVG_H - 2} fill="none" stroke="#334155" strokeWidth="1.5" rx="12" opacity="0.5" />
+                    {/* ─── BORDA DO MAPA ─── */}
+                    <rect x="2" y="2" width={SVG_W - 4} height={SVG_H - 4} fill="none" stroke="#1e293b" strokeWidth="2" rx="6" opacity="0.8" />
                 </svg>
             </div>
 
             {/* ═══ TOOLTIP ═══ */}
             {tooltip && (
                 <div
-                    className="absolute z-40 pointer-events-none bg-gray-900/95 border border-gray-600 rounded-xl px-3 py-2 shadow-2xl backdrop-blur-sm"
+                    className="absolute z-40 pointer-events-none bg-gray-900/95 border border-amber-500/40 rounded-xl px-3 py-2 shadow-2xl backdrop-blur-sm"
                     style={{
                         left: tooltip.x,
                         top: tooltip.y,
                         transform: 'translate(-50%, -100%)',
                     }}
                 >
-                    <p className="text-white font-bold text-sm">
+                    <p className="text-amber-400 font-bold text-sm">
                         Stand {String(tooltip.stand.numero).padStart(2, '0')}
                     </p>
                     <p className="text-xs font-medium mt-0.5" style={{ color: tipoColors[tooltip.stand.tipo] || '#94a3b8' }}>
@@ -526,8 +535,8 @@ export default function StandMap({ stands, onStandClick, selectedStandId }: Stan
                 </div>
             )}
 
-            {/* ═══ Mobile hint (shown only on small screens at zoom 1) ═══ */}
-            {zoom <= 1 && (
+            {/* ═══ Mobile hint ═══ */}
+            {zoom <= 0.85 && (
                 <div className="absolute bottom-2 left-1/2 -translate-x-1/2 sm:hidden z-10">
                     <p className="text-[10px] text-gray-500 bg-gray-900/80 px-3 py-1 rounded-full backdrop-blur-sm border border-gray-700/30">
                         Pinch para zoom • Toque para ver detalhes

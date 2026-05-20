@@ -17,15 +17,28 @@ export default function StandItem({ position, stand, onClick, isSelected, isHigh
     const status = stand?.status || 'disponivel';
     const tipo = stand?.tipo || position.tipo;
     const empresa = stand?.empresa;
+    const isBleach = position.numero >= 101;
 
-    // Cor principal = TIPO do stand (como no mapa original)
-    const fillColor = standTypeColors[tipo] || '#64748b';
-    const borderColor = standTypeBorderColors[tipo] || '#475569';
+    const fillColor = isBleach 
+        ? 'rgba(239, 68, 68, 0.12)' 
+        : (standTypeColors[tipo] || '#64748b');
+        
+    const borderColor = isBleach 
+        ? '#ef4444' 
+        : (standTypeBorderColors[tipo] || '#475569');
+        
     const statusColor = standStatusColors[status];
 
-    // Texto escuro para ouro e bronze, branco para master e prata
-    const textColor = (tipo === 'ouro' || tipo === 'bronze') ? '#1e293b' : '#ffffff';
-    const subTextColor = (tipo === 'ouro' || tipo === 'bronze') ? '#374151' : '#e2e8f0';
+    // Escala o texto proporcionalmente à altura do stand
+    const numFontSize = Math.round(position.height * 0.32);
+    const subFontSize = Math.round(position.height * 0.13);
+    const dotR        = Math.round(position.width * 0.07);
+
+    const textColor    = isBleach ? '#fca5a5' : ((tipo === 'ouro' || tipo === 'bronze') ? '#1e293b' : '#ffffff');
+    const subTextColor = isBleach ? '#fca5a5' : ((tipo === 'ouro' || tipo === 'bronze') ? '#374151' : '#e2e8f0');
+
+    const cx = position.x + position.width / 2;
+    const cy = position.y + position.height / 2;
 
     return (
         <g
@@ -35,85 +48,71 @@ export default function StandItem({ position, stand, onClick, isSelected, isHigh
             tabIndex={0}
             aria-label={`Stand ${position.numero} - ${standTypeLabels[tipo]} - ${standStatusLabels[status]}${empresa ? ` - ${empresa}` : ''}`}
         >
-            {/* Tipo border glow */}
+            {/* Borda tipo */}
             <rect
-                x={position.x - 2}
-                y={position.y - 2}
-                width={position.width + 4}
-                height={position.height + 4}
-                rx={5}
+                x={position.x - 3}
+                y={position.y - 3}
+                width={position.width + 6}
+                height={position.height + 6}
+                rx={6}
                 fill="none"
                 stroke={borderColor}
-                strokeWidth={isSelected ? 3 : 2}
-                opacity={isSelected ? 1 : 0.7}
+                strokeWidth={isSelected ? 6 : 3}
+                opacity={isSelected ? 1 : 0.6}
             />
 
-            {/* Stand fill (TIPO color) */}
+            {/* Preenchimento do stand */}
             <rect
-                id={`stand-${String(position.numero).padStart(2, '0')}`}
+                id={`stand-${String(position.numero).padStart(3, '0')}`}
                 x={position.x}
                 y={position.y}
                 width={position.width}
                 height={position.height}
-                rx={3}
+                rx={4}
                 fill={fillColor}
-                opacity={0.92}
+                opacity={0.88}
                 className="hover:opacity-100 transition-opacity duration-150"
             />
 
-            {/* Stand number (large, bold) */}
+            {/* Número do stand — grande e legível */}
             <text
-                x={position.x + position.width / 2}
-                y={position.y + position.height / 2 - 6}
+                x={cx}
+                y={cy - numFontSize * 0.15}
                 textAnchor="middle"
                 dominantBaseline="central"
                 fill={textColor}
-                fontSize={14}
+                fontSize={numFontSize}
                 fontWeight="900"
+                fontFamily="'Inter', 'Arial', sans-serif"
                 className="pointer-events-none select-none"
             >
                 {String(position.numero).padStart(2, '0')}
             </text>
 
-            {/* Tipo label */}
-            <text
-                x={position.x + position.width / 2}
-                y={position.y + position.height / 2 + 9}
-                textAnchor="middle"
-                dominantBaseline="central"
-                fill={subTextColor}
-                fontSize={7}
-                fontWeight="700"
-                className="pointer-events-none select-none"
-                letterSpacing="0.3"
-            >
-                {tipo === 'ouro' ? 'OURO' : tipo === 'prata' ? 'PRATA' : tipo === 'bronze' ? 'BRONZE' : tipo === 'master' ? 'MASTER' : ''}
-            </text>
-
-            {/* Company name */}
+            {/* Status label (empresa se houver) */}
             {empresa && (
                 <text
-                    x={position.x + position.width / 2}
-                    y={position.y + position.height / 2 + 19}
+                    x={cx}
+                    y={cy + numFontSize * 0.55}
                     textAnchor="middle"
                     dominantBaseline="central"
                     fill={subTextColor}
-                    fontSize={6}
-                    opacity={0.8}
+                    fontSize={subFontSize}
+                    fontWeight="600"
                     className="pointer-events-none select-none"
                 >
-                    {empresa.length > 8 ? empresa.substring(0, 7) + '…' : empresa}
+                    {empresa.length > 10 ? empresa.substring(0, 9) + '…' : empresa}
                 </text>
             )}
 
-            {/* Status indicator (colored dot in top-right corner) */}
+            {/* Ponto de status no canto superior direito */}
             <circle
-                cx={position.x + position.width - 6}
-                cy={position.y + 6}
-                r={4}
+                cx={position.x + position.width - dotR - 4}
+                cy={position.y + dotR + 4}
+                r={dotR}
                 fill={statusColor}
                 stroke={borderColor}
-                strokeWidth={1}
+                strokeWidth={2}
                 opacity={0.95}
             />
 
@@ -123,44 +122,44 @@ export default function StandItem({ position, stand, onClick, isSelected, isHigh
                 y={position.y}
                 width={position.width}
                 height={position.height}
-                rx={3}
+                rx={4}
                 fill="white"
                 opacity={0}
-                className="hover:opacity-[0.12] transition-opacity duration-150"
+                className="hover:opacity-[0.1] transition-opacity duration-150"
             />
 
-            {/* Selection pulse */}
+            {/* Selecionado: pulsação */}
             {isSelected && (
                 <rect
-                    x={position.x - 3}
-                    y={position.y - 3}
-                    width={position.width + 6}
-                    height={position.height + 6}
-                    rx={6}
+                    x={position.x - 6}
+                    y={position.y - 6}
+                    width={position.width + 12}
+                    height={position.height + 12}
+                    rx={8}
                     fill="none"
                     stroke="#ffffff"
-                    strokeWidth={2}
+                    strokeWidth={4}
                     opacity={0.8}
                 >
-                    <animate attributeName="opacity" values="0.8;0.3;0.8" dur="1.5s" repeatCount="indefinite" />
+                    <animate attributeName="opacity" values="0.8;0.2;0.8" dur="1.5s" repeatCount="indefinite" />
                 </rect>
             )}
 
-            {/* Search highlight pulse */}
+            {/* Destaque de busca */}
             {isHighlighted && !isSelected && (
                 <rect
-                    x={position.x - 5}
-                    y={position.y - 5}
-                    width={position.width + 10}
-                    height={position.height + 10}
-                    rx={8}
+                    x={position.x - 8}
+                    y={position.y - 8}
+                    width={position.width + 16}
+                    height={position.height + 16}
+                    rx={10}
                     fill="none"
-                    stroke="#3b82f6"
-                    strokeWidth={3}
+                    stroke="#f59e0b"
+                    strokeWidth={6}
                     opacity={0.9}
                 >
                     <animate attributeName="opacity" values="1;0.3;1" dur="0.8s" repeatCount="indefinite" />
-                    <animate attributeName="strokeWidth" values="3;5;3" dur="0.8s" repeatCount="indefinite" />
+                    <animate attributeName="strokeWidth" values="6;10;6" dur="0.8s" repeatCount="indefinite" />
                 </rect>
             )}
         </g>

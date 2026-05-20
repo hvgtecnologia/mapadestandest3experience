@@ -9,185 +9,238 @@ export interface StandPosition {
     height: number;
 }
 
+export interface SpecialArea {
+    id: string;
+    label: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    color: string;
+    textColor?: string;
+    fontSize?: number;
+    borderRadius?: number;
+}
+
+export interface Corridor {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+}
+
+export interface MapAnnotation {
+    type: 'text' | 'arrow' | 'entrance';
+    label: string;
+    x: number;
+    y: number;
+    rotation?: number;
+    fontSize?: number;
+    color?: string;
+}
+
 // ============================================
-// NOVO LAYOUT DO MAPA (ROTACIONADO 90º HORÁRIO)
-// ViewBox permanece: 0 0 1100 950
+// CONFIGURAÇÕES DO GRID VETORIAL
+// Matriz de 16 linhas × 12 colunas baseada em mapa_t3.html
 // ============================================
 
-// Dimensões trocadas porque o estande girou
-const SW = 54;  // stand width após giro (era altura)
-const SH = 52;  // stand height após giro (era largura)
-const VS = 4;   // gap
-const startX = 60;
-const startY = 30;
+export const SVG_W = 880;
+export const SVG_H = 1220;
 
-// O maxRow original era 15. Usamos 15 - oldRow para inverter o eixo Y, 
-// transformando-o no novo eixo X. E o oldCol vira o novo eixo Y.
-const oldMaxRow = 15;
+const GRID_START_X = 40;
+const GRID_START_Y = 60;
+const ROW_HEIGHT = 70;
 
-const gX_old = (col: number) => startX + col * (SH + VS); // antes era SW
-const gY_old = (row: number) => startY + row * (SW + VS); // antes era SH
+const colWidths = [80, 40, 80, 80, 40, 80, 80, 40, 80, 80, 40, 80];
 
-const gX = (oldCol: number, oldRow: number) => startX + (oldMaxRow - oldRow) * (SW + VS);
-const gY = (oldCol: number, oldRow: number) => startY + oldCol * (SH + VS);
+const getColX = (colIndex: number) => {
+    let x = GRID_START_X;
+    for (let i = 0; i < colIndex; i++) {
+        x += colWidths[i];
+    }
+    return x;
+};
 
-export const standPositions: StandPosition[] = [
-    // ═══════════════════════════════════════════
-    // ANTES: Left column (01-10) -> Col 0, Rows 14 a 5
-    // AGORA: Top Row (Horizontal em y=gY(0), da esquerda pra direita)
-    // ═══════════════════════════════════════════
-    // Stands 3, 5, 6, 7, 8, 9, 10 — sem gap (3 encostado no 5)
-    ...([3, 5, 6, 7, 8, 9, 10].map((num, i) => ({ 
-        numero: num, tipo: 'ouro' as StandType, 
-        x: gX(0, 11 - i), y: gY(0, 11 - i), 
-        width: SW, height: SH 
-    }))),
-  
-    // ═══════════════════════════════════════════
-    // ANTES: Top Row (11-22) -> Row 0, Cols 1 a 12
-    // AGORA: Right Column (Vertical em x fixo à direita, descendo)
-    // ═══════════════════════════════════════════
-    ...Array.from({length: 12}, (_, i) => ({ 
-        numero: 11 + i, tipo: 'ouro' as StandType, 
-        x: gX(1 + i, 0), y: gY(1 + i, 0), 
-        width: SW, height: SH 
-    })),
+const getRowY = (rowIndex: number) => {
+    return GRID_START_Y + rowIndex * ROW_HEIGHT;
+};
 
-    // ═══════════════════════════════════════════
-    // ANTES: Top Block (84-95) -> Rows 4 e 3, Cols 3-8
-    // AGORA: Right Block
-    // ═══════════════════════════════════════════
-    // fileira 1: 95 a 90 (estavam na linha 3)
-    ...Array.from({length: 6}, (_, i) => ({ 
-        numero: [85, 84, 86, 87, 76, 75][i], tipo: 'master' as StandType, 
-        x: gX(3 + i, 3), y: gY(3 + i, 3), width: SW, height: SH 
-    })),
-    // fileira 2: 89 a 84 (estavam na linha 4)
-    ...Array.from({length: 6}, (_, i) => ({ 
-        numero: [65, 66, 67, 68, 69, 74][i], tipo: 'master' as StandType, 
-        x: gX(3 + i, 4), y: gY(3 + i, 4), width: SW, height: SH 
-    })),
+// ============================================
+// REPRESENTAÇÃO DA MATRIZ DO HTML ORIGINAL
+// ============================================
+interface RawCell {
+    t: 'stand' | 'bleach' | 'aisle' | 'bath';
+    n?: number;
+    s?: string;
+}
 
-    // ═══════════════════════════════════════════
-    // ANTES: Bottom Block (63-74) -> Rows 11 e 12, Cols 3-8
-    // AGORA: Left Block
-    // ═══════════════════════════════════════════
-    // fileira 1: 74 a 69 (estavam na linha 11)
-    ...Array.from({length: 6}, (_, i) => ({ 
-        numero: [64, 63, 62, 61, 60, 55][i], tipo: 'ouro' as StandType, 
-        x: gX(3 + i, 11), y: gY(3 + i, 11), width: SW, height: SH 
-    })),
-    // fileira 2: 68 a 63 (estavam na linha 12)
-    ...Array.from({length: 6}, (_, i) => ({ 
-        numero: [45, 46, 47, 48, 49, 50][i], tipo: 'ouro' as StandType, 
-        x: gX(3 + i, 12), y: gY(3 + i, 12), width: SW, height: SH 
-    })),
+const S = (n: number): RawCell => ({ t: 'stand', n });
+const B = (n: number): RawCell => ({ t: 'bleach', n });
+const A = (s = ''): RawCell => ({ t: 'aisle', s });
+const W = (): RawCell => ({ t: 'bath' });
 
-    // ═══════════════════════════════════════════
-    // ANTES: Bottom Row (30-43) -> Row 15, Cols 1 a 14
-    // AGORA: Left Column (Vertical em x fixo à esquerda, descendo)
-    // ═══════════════════════════════════════════
-    ...Array.from({length: 12}, (_, i) => ({ 
-        numero: 30 + i, tipo: 'prata' as StandType, 
-        x: gX(1 + i, 15), y: gY(1 + i, 15), 
-        width: SW, height: SH 
-    })),
+const LAYOUT: RawCell[][] = [
+    // Linha 0 — TOPO: tira 43-46 conectada ao mapa
+    [ S(1),  A(),  S(15), S(38), A(),  S(43), S(44), A(), S(45), S(46), A(), B(114)],
+
+    // Linha 1 — corredor abaixo da tira 43-46
+    [ S(2),  A('↓'),S(16),S(37),A('↑'),A('→'),A('→'),A('→'),A('→'),A('→'),A('↑'),B(113)],
+
+    // Linhas 2-11 — corpo principal
+    [ S(3),  A(),  S(17), S(36), A(),  S(47), S(72), A(), S(87), S(88), A(), B(112)],
+    [ S(4),  A(),  S(18), S(35), A('↑'),S(48),S(71),A('↓'),S(86), S(89), A(), B(111)],
+    [ S(5),  A('↓'),S(19),S(34), A(),  S(49), S(70), A(), S(85), S(90), A('↑'),B(110)],
+    [ S(6),  A(),  S(20), S(33), A(),  S(50), S(69), A(), S(84), S(91), A(), B(109)],
+    [ S(7),  A(),  S(21), S(32), A('↑'),S(51),S(68), A(), S(83), S(92), A(), B(108)],
+    [ S(8),  A('↓'),S(22),S(31), A(),  S(52), S(67), A(), S(82), S(93), A('↑'),B(107)],
+    [ S(9),  A(),  S(23), S(30), A('↑'),S(53),S(66), A(), S(81), S(94), A(), B(106)],
+    [S(10),  A('↓'),S(24),S(29), A(),  S(54), S(65),A('↓'),S(80), S(95), A(), B(105)],
+    [S(11),  A('↓'),S(25),S(28), A(),  S(55), S(64), A(), S(79), S(96), A(), B(104)],
+    [S(12),  A(),  S(26), S(27), A('↑'),S(56),S(63), A(), S(78), S(97), A('↑'),B(103)],
+
+    // Linhas 12-13 — parte inferior do corpo
+    [S(13),  A(),   A(),  A(),  A(),  S(57), S(62), A(), S(77), S(98), A(), B(102)],
+    [S(14),  A('→'),A(),  A(),  A('↑'),S(58),S(61),A('→'),S(76), S(99), A('↑'),B(101)],
+
+    // Linha 14 — cauda do bloco central
+    [ A(),   A(),   A(),  A(),  A('↑'),S(59), S(60),A('→'),A(),  A(),  A('↑'),A()  ],
+
+    // Linha 15 — tira inferior (sanitários + stands especiais)
+    [ W(),  S(39), S(40),S(41),S(42), W(),  W(),  S(73), S(74),S(75),S(100), W() ],
 ];
 
-const ouroStands = [30, 68, 63, 62, 61, 60];
-const masterStands = [87, 17, 18, 19, 20, 21, 22, 31, 38, 39, 40, 41];
-const bronzeStands = [32, 33, 34, 35, 36, 37];
+// ============================================
+// CONSTRUÇÃO DINÂMICA DOS ARRAYS DO MAPA
+// ============================================
 
-standPositions.forEach(stand => {
-    if (ouroStands.includes(stand.numero)) stand.tipo = 'ouro';
-    if (masterStands.includes(stand.numero)) stand.tipo = 'master';
-    if (bronzeStands.includes(stand.numero)) stand.tipo = 'bronze';
+export const standPositions: StandPosition[] = [];
+export const specialAreas: SpecialArea[] = [];
+export const corridors: Corridor[] = [];
+export const annotations: MapAnnotation[] = [];
+
+// Função auxiliar para determinar o tipo padrão do stand para o mockup
+const getTipoDefault = (n: number): StandType => {
+    if (n >= 101 && n <= 114) return 'bronze'; // arquibancadas
+    if (n >= 1 && n <= 10) return 'ouro';
+    if (n === 11 || n === 12 || n === 44 || n === 58 || n === 59 || n === 60 || n === 61 || n === 62 || n === 63 || n === 64 || n === 31 || n === 32 || n === 73 || n === 74 || n === 75) return 'ouro';
+    if (n >= 76 && n <= 84) return 'master';
+    if (n >= 85 && n <= 92) return 'prata';
+    if (n >= 15 && n <= 25) return 'bronze';
+    if (n >= 93 && n <= 99) return 'bronze';
+    if (n >= 26 && n <= 30) return 'prata';
+    return 'prata';
+};
+
+LAYOUT.forEach((row, rowIndex) => {
+    const y = getRowY(rowIndex);
+    const height = ROW_HEIGHT;
+
+    row.forEach((cell, colIndex) => {
+        const x = getColX(colIndex);
+        const width = colWidths[colIndex];
+
+        if (cell.t === 'stand') {
+            standPositions.push({
+                numero: cell.n!,
+                tipo: getTipoDefault(cell.n!),
+                x: x + 3,
+                y: y + 3,
+                width: width - 6,
+                height: height - 6,
+            });
+        } else if (cell.t === 'bleach') {
+            standPositions.push({
+                numero: cell.n!,
+                tipo: 'bronze', // styled specially as bleach
+                x: x + 3,
+                y: y + 3,
+                width: width - 6,
+                height: height - 6,
+            });
+        } else if (cell.t === 'bath') {
+            specialAreas.push({
+                id: `bath-${rowIndex}-${colIndex}`,
+                label: 'W.C.',
+                x: x + 3,
+                y: y + 3,
+                width: width - 6,
+                height: height - 6,
+                color: '#475569',
+                textColor: '#94a3b8',
+                fontSize: 11,
+                borderRadius: 4,
+            });
+        } else if (cell.t === 'aisle') {
+            // Adiciona o corredor
+            corridors.push({
+                x: x + 1,
+                y: y + 1,
+                width: width - 2,
+                height: height - 2,
+            });
+
+            // Se tiver seta de fluxo, adiciona como anotação
+            if (cell.s) {
+                annotations.push({
+                    type: 'arrow',
+                    label: cell.s,
+                    x: x + width / 2,
+                    y: y + height / 2,
+                    fontSize: 16,
+                    color: '#3b82f6',
+                });
+            }
+        }
+    });
 });
 
-// ═══════════════════════════════════════════
-// ÁREAS ESPECIAIS (Também Rotacionadas)
-// ═══════════════════════════════════════════
-export interface SpecialArea {
-    id: string; label: string; x: number; y: number; width: number; height: number;
-    color: string; textColor?: string; fontSize?: number; borderRadius?: number;
-}
+// Adicionar anotações estáticas dos portões e fluxos principais
+annotations.push(
+    { type: 'entrance', label: '↩ Entrada', x: 40, y: 35, fontSize: 18, color: '#60a5fa' },
+    { type: 'text', label: 'Portão Principal ↪', x: GRID_START_X + 800 - 40, y: 35, fontSize: 18, color: '#60a5fa' },
+    { type: 'entrance', label: '↩ Portão Alternativo', x: 40, y: GRID_START_Y + 16 * ROW_HEIGHT + 30, fontSize: 16, color: '#60a5fa' },
+    { type: 'text', label: 'STAND 3m · RUA 3m', x: GRID_START_X + 800 - 40, y: GRID_START_Y + 16 * ROW_HEIGHT + 30, fontSize: 12, color: '#94a3b8' }
+);
 
-export const specialAreas: SpecialArea[] = [
-    {
-        id: 'lounge',
-        label: 'LOUNGE',
-        // Antes era de (col=3, row=5) a (col=8, row=10)
-        // O top left agora é derivado do top right de antes? 
-        // Não, a rotação faz x_new = gX(col_min, row_max), y_new = gY(col_min, row_min)
-        x: gX(3, 10), y: gY(3, 5),
-        // A largura rotacionada absorve a altura de antes!
-        width: (10 - 5) * (SW + VS) + SW, 
-        height: (8 - 3) * (SH + VS) + SH,
-        color: '#4f46e5', textColor: '#c7d2fe', fontSize: 18, borderRadius: 0,
-    },
-    {
-        id: 'palco',
-        label: 'PALCO',
-        // Antes estava aprox. em col=14, row=6, com w=160, h=260
-        // Nova X = gerada de old row end (fundo approx 6+4.5 ~ 10.5 -> 10)
-        // Nova Y = gerada de old col 14
-        x: gX(14, 10), y: gY(14, 6),
-        width: 260, height: 160,
-        color: '#1e293b', textColor: '#e2e8f0', fontSize: 18, borderRadius: 6,
-    },
-    {
-        id: 'barracas1',
-        label: 'BARRACAS',
-        // Antes em (col=14, row=2..4)
-        x: gX(14, 4), y: gY(14, 2),
-        width: (4 - 2) * (SW + VS) + SW, 
-        height: SH * 2,
-        color: '#0e7490', textColor: '#e0f2fe', fontSize: 10, borderRadius: 4,
-    },
-    {
-        id: 'barracas2',
-        label: 'BARRACAS',
-        // Antes em (col=14, row=11..13)
-        x: gX(14, 13), y: gY(14, 11),
-        width: (13 - 11) * (SW + VS) + SW, 
-        height: SH * 2,
-        color: '#0e7490', textColor: '#e0f2fe', fontSize: 10, borderRadius: 4,
-    }
-];
+// Adicionar a área especial da Arquibancada à direita
+specialAreas.push({
+    id: 'arquibancada-label-area',
+    label: '',
+    x: getColX(11) + colWidths[11] + 10,
+    y: GRID_START_Y,
+    width: 25,
+    height: 14 * ROW_HEIGHT,
+    color: '#ef4444',
+    borderRadius: 4,
+});
 
-// ═══════════════════════════════════════════
-// CORREDORES (Rotacionados)
-// ═══════════════════════════════════════════
-export interface Corridor {
-    x: number; y: number; width: number; height: number;
-}
-
-export const corridors: Corridor[] = [
-    // Antigo top horizontal tendas (row=1, col=1 a 12)
-    { x: gX(1, 2) - 2, y: gY(1, 1), width: 1 * (SW + VS) + SW + 4, height: (12 - 1) * (SH + VS) + SH },
-    // Antigo bottom horizontal tendas (row=13, col=1 a 12)
-    { x: gX(1, 14) - 2, y: gY(1, 13), width: 1 * (SW + VS) + SW + 4, height: (12 - 1) * (SH + VS) + SH },
-    // Antigo left vertical tendas (col=1, row=1 a 14)
-    { x: gX(1, 14), y: gY(1, 1) - 2, width: (14 - 1) * (SW + VS) + SW, height: 1 * (SH + VS) + SH + 4 },
-    // Antigo right vertical tendas (col=9, row=1 a 14)
-    { x: gX(9, 14), y: gY(9, 1) - 2, width: (14 - 1) * (SW + VS) + SW, height: 1 * (SH + VS) + SH + 4 },
-];
-
-export interface MapAnnotation { type: 'text' | 'arrow' | 'entrance'; label: string; x: number; y: number; rotation?: number; fontSize?: number; color?: string; }
-export const annotations: MapAnnotation[] = [
-    // PÓRTICO (Antes X=-1, Y=9 -> Agora X=gX(-1,9), Y=gY(-1,9))
-    { type: 'entrance', label: 'PÓRTICO DE ENTRADA', x: gX(-1, 9), y: gY(-1, 9), rotation: 0, fontSize: 11, color: '#60a5fa' },
-];
-
+// ============================================
+// GERADOR DE MOCK DATA
+// ============================================
 export function generateMockStands(): Stand[] {
     const statuses: Stand['status'][] = ['disponivel', 'reservado', 'vendido'];
-    const empresas = ['Tech Solutions', 'Digital Wave', 'InnovateTech', 'Smart Systems', 'DataFlow', 'CloudPeak', 'NetBridge', 'CodeForge', 'CyberCore', 'PixelHub', 'LogiTech Pro', 'MegaByte'];
+    const empresas = [
+        'Tech Solutions', 'Digital Wave', 'InnovateTech', 'Smart Systems',
+        'DataFlow', 'CloudPeak', 'NetBridge', 'CodeForge',
+        'CyberCore', 'PixelHub', 'LogiTech Pro', 'MegaByte',
+    ];
+
     return standPositions.map((pos, i) => {
-        const randomStatus = statuses[Math.floor(Math.random() * 3)];
+        // Arquibancadas começam 80% disponíveis por padrão
+        const isBleach = pos.numero >= 101;
+        const randomStatus = isBleach 
+            ? (Math.random() > 0.8 ? 'vendido' : 'disponivel')
+            : statuses[Math.floor(Math.random() * 3)];
+
         return {
-            id: `stand-${pos.numero}`, numero: pos.numero, status: randomStatus,
-            empresa: randomStatus === 'vendido' ? empresas[i % empresas.length] : randomStatus === 'reservado' ? empresas[(i + 5) % empresas.length] : null,
-            tipo: pos.tipo, created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+            id: `stand-${pos.numero}`,
+            numero: pos.numero,
+            status: randomStatus,
+            empresa: randomStatus === 'vendido' ? empresas[i % empresas.length] :
+                randomStatus === 'reservado' ? empresas[(i + 3) % empresas.length] : null,
+            tipo: pos.tipo,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
         };
     });
 }

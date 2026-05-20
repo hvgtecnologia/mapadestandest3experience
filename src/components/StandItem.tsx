@@ -17,16 +17,9 @@ export default function StandItem({ position, stand, onClick, isSelected, isHigh
     const status = stand?.status || 'disponivel';
     const tipo = stand?.tipo || position.tipo;
     const empresa = stand?.empresa;
-    const isBleach = position.numero >= 101;
 
-    const fillColor = isBleach 
-        ? 'rgba(239, 68, 68, 0.12)' 
-        : (standTypeColors[tipo] || '#64748b');
-        
-    const borderColor = isBleach 
-        ? '#ef4444' 
-        : (standTypeBorderColors[tipo] || '#475569');
-        
+    const fillColor = standTypeColors[tipo] || '#64748b';
+    const borderColor = standTypeBorderColors[tipo] || '#475569';
     const statusColor = standStatusColors[status];
 
     // Escala o texto proporcionalmente à altura do stand
@@ -34,8 +27,8 @@ export default function StandItem({ position, stand, onClick, isSelected, isHigh
     const subFontSize = Math.round(position.height * 0.13);
     const dotR        = Math.round(position.width * 0.07);
 
-    const textColor    = isBleach ? '#fca5a5' : ((tipo === 'ouro' || tipo === 'bronze') ? '#1e293b' : '#ffffff');
-    const subTextColor = isBleach ? '#fca5a5' : ((tipo === 'ouro' || tipo === 'bronze') ? '#374151' : '#e2e8f0');
+    const textColor    = (tipo === 'ouro' || tipo === 'bronze') ? '#1e293b' : '#ffffff';
+    const subTextColor = (tipo === 'ouro' || tipo === 'bronze') ? '#374151' : '#e2e8f0';
 
     const cx = position.x + position.width / 2;
     const cy = position.y + position.height / 2;

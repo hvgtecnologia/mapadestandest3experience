@@ -40,264 +40,160 @@ export interface MapAnnotation {
 }
 
 // ============================================================
-//  LAYOUT BASEADO NA IMAGEM FINAL DO USUÁRIO
-//  Total: 111 stands (sem 14, sem 59, sem 60)
+//  MAPA T3 — 114 stands sequenciais (1 a 114)
 //
-//  Estrutura de colunas (esq → dir):
-//    left | aisle | b2L | b2R | aisle | b3L | b3R | aisle | b4L | b4R | aisle | right
-//    30     110     152   232    312    354   434    514    556   636    716    758
+//  Baseado EXATAMENTE no HTML de referência (v7):
+//  Canvas: 940 × 920 px
+//  Célula:  72 × 50 px  (interna)
+//  Bloco:   padding=4, gap=2
+//  Corredor entre blocos: 66 px
 //
-//  Estrutura de linhas:
-//    Y_TOP (30):  strip 43,44,45,46 + topo right col (114)
-//    rows 0-11:   blocos 2,3,4 (12 linhas × 66px = 792px)
-//    rows 0-12:   col esquerda (01-13) e col direita (113→101)
-//    row 12:      faixa inferior (39-42, 73-75, 100)
+//  Blocos (top | left | w | h):
+//    strip-top (43-46):   60  | 324 | 302 |  58
+//    col1      (01-14):  110  |  32 |  80 | 734
+//    pair1     (15-38):  110  | 178 | 154 | 630
+//    pair2     (47-72):  162  | 398 | 154 | 682
+//    pair3     (76-99):  110  | 618 | 154 | 630
+//    col-right (101-114):110  | 838 |  80 | 734
+//    bot-left  (39-42):  836  | 104 | 302 |  58
+//    bot-right (73-75,100):836| 544 | 302 |  58
 // ============================================================
 
-export const SVG_W = 880;
-export const SVG_H = 1020;
+export const SVG_W = 940;
+export const SVG_H = 920;
 
-const CW  = 80;   // largura total da célula
-const CH  = 66;   // altura total da célula
-const SW  = CW - 6;  // largura interna do stand  = 74
-const SH  = CH - 6;  // altura interna do stand   = 60
-const PAD = 3;    // padding
+// Dimensões de célula (interna, sem padding do bloco)
+const CW = 72;   // cell width
+const CH = 50;   // cell height
+const BP = 4;    // block padding
+const CG = 2;    // cell gap
 
-// Posições X de cada coluna (borda esquerda da célula)
-const X = {
-    left:  30,
-    b2l:   152,   // 30 + 80 + 42 (aisle)
-    b2r:   232,   // 152 + 80
-    b3l:   354,   // 232 + 80 + 42
-    b3r:   434,   // 354 + 80
-    b4l:   556,   // 434 + 80 + 42
-    b4r:   636,   // 556 + 80
-    right: 758,   // 636 + 80 + 42
-};
+// Helper: calcula posições SVG das células dentro de um bloco
+// blockLeft, blockTop = coordenadas absolutas do bloco
+// col, row (0-indexed) = posição da célula dentro do bloco
+function cellPos(blockLeft: number, blockTop: number, col: number, row: number) {
+    return {
+        x: blockLeft + BP + col * (CW + CG),
+        y: blockTop  + BP + row * (CH + CG),
+    };
+}
 
-// Posições Y
-const Y_TOP  = 30;           // faixa superior (43-46 e start da col direita 114)
-const Y_MAIN = Y_TOP + CH + 4;  // = 100 (início do corpo principal)
-const ry = (r: number) => Y_MAIN + r * CH;  // row helper: ry(0)=100 .. ry(12)=892
-
-// Dimensão interna para stand (x+PAD, y+PAD, SW, SH)
-const sp = (n: number, cx: number, cy: number): StandPosition => ({
-    numero: n,
-    tipo: 'prata',
-    x: cx + PAD,
-    y: cy + PAD,
-    width: SW,
-    height: SH,
-});
+const PAD = 0;  // as posições já incluem o padding do bloco
 
 // ============================================================
 //  POSIÇÕES DOS STANDS
 // ============================================================
 export const standPositions: StandPosition[] = [];
 
-// — FAIXA SUPERIOR: 43, 44 (acima de b3); 45, 46 (acima de b4) —
-standPositions.push(sp(43, X.b3l, Y_TOP));
-standPositions.push(sp(44, X.b3r, Y_TOP));
-standPositions.push(sp(45, X.b4l, Y_TOP));
-standPositions.push(sp(46, X.b4r, Y_TOP));
-
-// — COLUNA DIREITA (arquibancada): 114 no topo, 113→101 em rows 0-12 —
-standPositions.push(sp(114, X.right, Y_TOP));
-for (let k = 0; k < 13; k++) {
-    standPositions.push(sp(113 - k, X.right, ry(k)));
-}
-
-// — COLUNA ESQUERDA: 01-13 em rows 0-12 —
-for (let k = 0; k < 13; k++) {
-    standPositions.push(sp(1 + k, X.left, ry(k)));
-}
-
-// — BLOCO 2 (rows 0-11):
-//   esquerda: 15→26 (descendo)  /  direita: 38→27 (descendo) —
-for (let k = 0; k < 12; k++) {
-    standPositions.push(sp(15 + k, X.b2l, ry(k)));
-    standPositions.push(sp(38 - k, X.b2r, ry(k)));
-}
-
-// — BLOCO 3 (rows 0-11):
-//   esquerda: 47→58 (descendo)  /  direita: 72→61 (descendo) —
-for (let k = 0; k < 12; k++) {
-    standPositions.push(sp(47 + k, X.b3l, ry(k)));
-    standPositions.push(sp(72 - k, X.b3r, ry(k)));
-}
-
-// — BLOCO 4 (rows 0-11):
-//   esquerda: 87→76 (descendo)  /  direita: 88→99 (descendo) —
-for (let k = 0; k < 12; k++) {
-    standPositions.push(sp(87 - k, X.b4l, ry(k)));
-    standPositions.push(sp(88 + k, X.b4r, ry(k)));
-}
-
-// — FAIXA INFERIOR ESQUERDA: 39, 40, 41, 42 —
-// Posicionados logo à direita da coluna esquerda, na row 12
-const BOT_W = 70;   // largura ligeiramente menor para caber
-const BOT_Y = ry(12);
-const botLeft = [39, 40, 41, 42];
-for (let k = 0; k < 4; k++) {
+function addStand(n: number, blockL: number, blockT: number, col: number, row: number) {
+    const { x, y } = cellPos(blockL, blockT, col, row);
     standPositions.push({
-        numero: botLeft[k],
+        numero: n,
         tipo: 'prata',
-        x: X.left + CW + 8 + k * 76,   // 118, 194, 270, 346
-        y: BOT_Y + PAD,
-        width: BOT_W,
-        height: SH,
+        x,
+        y,
+        width: CW,
+        height: CH,
     });
 }
 
-// — FAIXA INFERIOR DIREITA: 73, 74, 75, 100 —
-// Posicionados à esquerda da coluna direita, na row 12
-const botRight = [73, 74, 75, 100];
-for (let k = 0; k < 4; k++) {
-    standPositions.push({
-        numero: botRight[k],
-        tipo: 'prata',
-        x: X.right - 4 * 76 + k * 76,   // 454, 530, 606, 682
-        y: BOT_Y + PAD,
-        width: BOT_W,
-        height: SH,
-    });
+// ── TIRA SUPERIOR: 43, 44, 45, 46 (1 linha × 4 colunas) ──
+// block: top=60, left=324, w=302, h=58
+const STRIP_TOP_L = 324, STRIP_TOP_T = 60;
+[43, 44, 45, 46].forEach((n, col) => addStand(n, STRIP_TOP_L, STRIP_TOP_T, col, 0));
+
+// ── COLUNA 1: 01-14 (14 linhas × 1 coluna) ──
+// block: top=110, left=32, w=80, h=734
+const COL1_L = 32, COL1_T = 110;
+for (let i = 0; i < 14; i++) addStand(i + 1, COL1_L, COL1_T, 0, i);
+
+// ── PAR 1: 15-26 esq | 38-27 dir (12 linhas × 2 colunas) ──
+// block: top=110, left=178, w=154, h=630
+const PAIR1_L = 178, PAIR1_T = 110;
+for (let r = 0; r < 12; r++) {
+    addStand(15 + r, PAIR1_L, PAIR1_T, 0, r);   // coluna esq: 15,16,...,26
+    addStand(38 - r, PAIR1_L, PAIR1_T, 1, r);   // coluna dir: 38,37,...,27
 }
 
-// ============================================================
-//  ÁREAS ESPECIAIS (WC / SANITÁRIOS)
-// ============================================================
-export const specialAreas: SpecialArea[] = [];
+// ── PAR 2: U-shape (13 linhas × 2 colunas) ──
+// esq: 47→59 (desce);  dir: 72→60 (desce)
+// block: top=162, left=398, w=154, h=682
+const PAIR2_L = 398, PAIR2_T = 162;
+for (let r = 0; r < 13; r++) {
+    addStand(47 + r, PAIR2_L, PAIR2_T, 0, r);   // esq: 47,48,...,59
+    addStand(72 - r, PAIR2_L, PAIR2_T, 1, r);   // dir: 72,71,...,60
+}
 
-// WC esquerdo inferior (sob coluna esquerda)
-specialAreas.push({
-    id: 'wc-bot-left',
-    label: 'WC',
-    x: X.left + PAD,
-    y: BOT_Y + PAD,
-    width: SW,
-    height: SH,
-    color: '#475569',
-    textColor: '#94a3b8',
-    fontSize: 11,
-    borderRadius: 4,
-});
+// ── PAR 3: 87-76 esq | 88-99 dir (12 linhas × 2 colunas) ──
+// block: top=110, left=618, w=154, h=630
+const PAIR3_L = 618, PAIR3_T = 110;
+for (let r = 0; r < 12; r++) {
+    addStand(87 - r, PAIR3_L, PAIR3_T, 0, r);   // esq: 87,86,...,76
+    addStand(88 + r, PAIR3_L, PAIR3_T, 1, r);   // dir: 88,89,...,99
+}
 
-// WC central inferior (entre faixas)
-specialAreas.push({
-    id: 'wc-bot-center',
-    label: 'WC',
-    x: 346 + 76 + 4,   // após stand 42
-    y: BOT_Y + PAD,
-    width: 100,
-    height: SH,
-    color: '#475569',
-    textColor: '#94a3b8',
-    fontSize: 11,
-    borderRadius: 4,
-});
+// ── COLUNA DIREITA: 114-101 (14 linhas × 1 coluna) ──
+// block: top=110, left=838, w=80, h=734
+const COLR_L = 838, COLR_T = 110;
+for (let i = 0; i < 14; i++) addStand(114 - i, COLR_L, COLR_T, 0, i);
 
-// WC direito inferior (sob coluna direita)
-specialAreas.push({
-    id: 'wc-bot-right',
-    label: 'WC',
-    x: X.right + PAD,
-    y: BOT_Y + PAD,
-    width: SW,
-    height: SH,
-    color: '#475569',
-    textColor: '#94a3b8',
-    fontSize: 11,
-    borderRadius: 4,
-});
+// ── TIRA INFERIOR ESQUERDA: 39, 40, 41, 42 (1 linha × 4 colunas) ──
+// block: top=836, left=104, w=302, h=58
+const BOT_L_L = 104, BOT_L_T = 836;
+[39, 40, 41, 42].forEach((n, col) => addStand(n, BOT_L_L, BOT_L_T, col, 0));
 
-// Marca vertical da arquibancada
-specialAreas.push({
-    id: 'arquibancada-label-area',
-    label: '',
-    x: X.right + CW + 6,
-    y: Y_TOP,
-    width: 18,
-    height: 14 * CH,
-    color: '#ef4444',
-    borderRadius: 3,
-});
+// ── TIRA INFERIOR DIREITA: 73, 74, 75, 100 (1 linha × 4 colunas) ──
+// block: top=836, left=544, w=302, h=58
+const BOT_R_L = 544, BOT_R_T = 836;
+[73, 74, 75, 100].forEach((n, col) => addStand(n, BOT_R_L, BOT_R_T, col, 0));
 
 // ============================================================
-//  CORREDORES (areas visuais de corredor)
+//  ÁREAS ESPECIAIS (sem WC no HTML — apenas arquibancada)
 // ============================================================
-export const corridors: Corridor[] = [];
-
-const mainBodyH = 12 * CH;  // altura dos blocos 2,3,4 (rows 0-11)
-const fullColH  = 13 * CH;  // altura das colunas esq/dir (rows 0-12)
-
-// Corredor vertical entre col esq e bloco 2
-corridors.push({ x: X.left + CW + 1, y: Y_MAIN, width: X.b2l - (X.left + CW) - 2, height: fullColH });
-
-// Corredor vertical entre bloco 2 e bloco 3
-corridors.push({ x: X.b2r + CW + 1, y: Y_TOP,  width: X.b3l - (X.b2r + CW) - 2, height: Y_MAIN - Y_TOP + mainBodyH });
-
-// Corredor vertical entre bloco 3 e bloco 4
-corridors.push({ x: X.b3r + CW + 1, y: Y_MAIN, width: X.b4l - (X.b3r + CW) - 2, height: mainBodyH });
-
-// Corredor vertical entre bloco 4 e col direita
-corridors.push({ x: X.b4r + CW + 1, y: Y_TOP,  width: X.right - (X.b4r + CW) - 2, height: Y_MAIN - Y_TOP + mainBodyH });
-
-// Corredor horizontal: gaps acima de bloco 2 e col esq
-corridors.push({ x: X.left + 1, y: Y_TOP, width: X.b2r + CW - X.left - 2, height: Y_MAIN - Y_TOP });
+export const specialAreas: SpecialArea[] = [
+    {
+        id: 'arquibancada-label-area',
+        label: '',
+        x: SVG_W - 14,
+        y: 110,
+        width: 3,
+        height: 734,
+        color: '#e74c3c',
+        borderRadius: 2,
+    },
+];
 
 // ============================================================
-//  ANOTAÇÕES (setas de fluxo e entradas)
+//  CORREDORES (áreas de corredor para fundo visual)
 // ============================================================
-export const annotations: MapAnnotation[] = [];
-
-// Setas de fluxo verticais no corredor esq
-const leftAisleX = X.left + CW + (X.b2l - X.left - CW) / 2;
-[1, 3, 5, 7, 9, 11].forEach(r => {
-    annotations.push({ type: 'arrow', label: r % 4 < 2 ? '↓' : '↑', x: leftAisleX, y: ry(r) + CH / 2 - 3, fontSize: 18, color: '#3b82f6' });
-});
-
-// Setas horizontais no corredor superior central (→)
-const topCorrY = Y_TOP + CH / 2;
-[354, 394, 434, 474, 514].forEach(ax => {
-    annotations.push({ type: 'arrow', label: '→', x: ax, y: topCorrY, fontSize: 16, color: '#3b82f6' });
-});
-
-// Setas verticais no corredor entre b2 e b3
-const midAisleB2B3X = X.b2r + CW + (X.b3l - X.b2r - CW) / 2;
-[1, 4, 7, 10].forEach(r => {
-    annotations.push({ type: 'arrow', label: r % 3 === 1 ? '↑' : '↓', x: midAisleB2B3X, y: ry(r) + CH / 2 - 3, fontSize: 18, color: '#3b82f6' });
-});
-
-// Setas verticais no corredor b3-b4
-const midAisleB3B4X = X.b3r + CW + (X.b4l - X.b3r - CW) / 2;
-[0, 3, 6, 9].forEach(r => {
-    annotations.push({ type: 'arrow', label: r % 6 === 0 ? '↓' : '↑', x: midAisleB3B4X, y: ry(r) + CH / 2 - 3, fontSize: 18, color: '#3b82f6' });
-});
-
-// Setas verticais no corredor b4-right
-const rightAisleX = X.b4r + CW + (X.right - X.b4r - CW) / 2;
-[2, 5, 8, 11].forEach(r => {
-    annotations.push({ type: 'arrow', label: r % 5 < 3 ? '↑' : '↓', x: rightAisleX, y: ry(r) + CH / 2 - 3, fontSize: 18, color: '#3b82f6' });
-});
-
-// Rótulos de entrada/portão
-annotations.push({ type: 'entrance', label: '↩ Entrada', x: X.left + CW / 2, y: Y_TOP + 10, fontSize: 11, color: '#60a5fa' });
-annotations.push({ type: 'text',     label: 'Portão Principal ↪', x: X.b4r + CW / 2, y: Y_TOP + 10, fontSize: 11, color: '#60a5fa' });
-annotations.push({ type: 'entrance', label: '↩ Portão Alternativo', x: X.left + CW / 2, y: ry(12) + CH - 10, fontSize: 10, color: '#60a5fa' });
-
-// Label "Arquibancada" vertical
-annotations.push({
-    type: 'text',
-    label: 'ARQUIBANCADA',
-    x: X.right + CW + 15,
-    y: Y_TOP + 7 * CH,
-    fontSize: 11,
-    color: '#f87171',
-    rotation: 90,
-});
+export const corridors: Corridor[] = [
+    // Corredor esq (entre col1 e pair1)
+    { x: 32 + 80, y: 110, width: 178 - (32 + 80), height: 734 },
+    // Corredor entre pair1 e pair2
+    { x: 178 + 154, y: 60, width: 398 - (178 + 154), height: 836 - 60 },
+    // Corredor entre pair2 e pair3
+    { x: 398 + 154, y: 110, width: 618 - (398 + 154), height: 682 },
+    // Corredor dir (entre pair3 e col-right)
+    { x: 618 + 154, y: 110, width: 838 - (618 + 154), height: 734 },
+];
 
 // ============================================================
-//  GERADOR DE MOCK DATA — todos disponíveis, todos prata
+//  ANOTAÇÕES
+// ============================================================
+export const annotations: MapAnnotation[] = [
+    {
+        type: 'text',
+        label: 'ARQUIBANCADA / SAÍDAS →',
+        x: SVG_W - 7,
+        y: 110 + 734 / 2,
+        rotation: 90,
+        fontSize: 11,
+        color: '#e74c3c',
+    },
+];
+
+// ============================================================
+//  GERADOR DE MOCK — todos disponíveis, todos prata
 // ============================================================
 export function generateMockStands(): Stand[] {
     return standPositions.map((pos) => ({

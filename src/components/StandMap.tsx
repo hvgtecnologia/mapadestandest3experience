@@ -418,13 +418,10 @@ export default function StandMap({ stands, onStandClick, selectedStandId }: Stan
                             <rect
                                 x={area.x} y={area.y}
                                 width={area.width} height={area.height}
-                                rx={area.borderRadius ?? 4}
+                                rx={area.borderRadius ?? 2}
                                 fill={area.color}
-                                opacity={area.id === 'arquibancada-label-area' ? 0.15 : 0.25}
-                                stroke={area.color}
-                                strokeWidth={1.5}
-                                strokeOpacity={0.6}
-                                strokeDasharray={area.id === 'arquibancada-label-area' ? '3 3' : undefined}
+                                opacity={area.id === 'arquibancada-label-area' ? 0.85 : 0.25}
+                                stroke="none"
                             />
                             {/* WC — hachurado + label */}
                             {area.id.startsWith('wc-') && (

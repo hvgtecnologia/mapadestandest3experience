@@ -18,14 +18,14 @@ export default function StandItem({ position, stand, onClick, isSelected, isHigh
     const tipo = stand?.tipo || position.tipo;
     const empresa = stand?.empresa;
 
-    const fillColor = standTypeColors[tipo] || '#64748b';
-    const borderColor = standTypeBorderColors[tipo] || '#475569';
+    const fillColor = standTypeColors[tipo] || '#2e8585';
+    const borderColor = standTypeBorderColors[tipo] || '#0d2340';
     const statusColor = standStatusColors[status];
 
-    // Escala o texto proporcionalmente à altura do stand
-    const numFontSize = Math.round(position.height * 0.32);
-    const subFontSize = Math.round(position.height * 0.13);
-    const dotR        = Math.round(position.width * 0.07);
+    // Tamanhos fixos baseados na célula 72×50 do HTML de referência
+    const numFontSize = 16;   // HTML usa font-size: 17px
+    const subFontSize = 10;
+    const dotR = 3;           // HTML usa dot de 5px (raio=2.5)
 
     const textColor    = (tipo === 'ouro' || tipo === 'bronze') ? '#1e293b' : '#ffffff';
     const subTextColor = (tipo === 'ouro' || tipo === 'bronze') ? '#374151' : '#e2e8f0';
@@ -54,7 +54,7 @@ export default function StandItem({ position, stand, onClick, isSelected, isHigh
                 opacity={isSelected ? 1 : 0.6}
             />
 
-            {/* Preenchimento do stand */}
+            {/* Preenchimento da cell */}
             <rect
                 id={`stand-${String(position.numero).padStart(3, '0')}`}
                 x={position.x}
@@ -63,7 +63,7 @@ export default function StandItem({ position, stand, onClick, isSelected, isHigh
                 height={position.height}
                 rx={4}
                 fill={fillColor}
-                opacity={0.88}
+                opacity={0.95}
                 className="hover:opacity-100 transition-opacity duration-150"
             />
 

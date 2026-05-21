@@ -1,6 +1,6 @@
 export type StandStatus = 'disponivel' | 'reservado' | 'vendido';
 
-export type StandType = 'ouro' | 'prata' | 'bronze' | 'master' | 'bar' | 'palco' | 'area';
+export type StandType = 'ouro' | 'prata' | 'bronze' | 'master' | 'outro' | 'bar' | 'palco' | 'area';
 
 export interface Stand {
   id: string;

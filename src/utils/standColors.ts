@@ -1,17 +1,33 @@
 import { StandStatus, StandType } from '@/types/stand';
 
 // ═══════════════════════════════════════════
-// CORES POR TIPO (core visual identity)
-// Baseado na legenda do mapa T3 Experience
+// CORES POR TIPO (novo mapa evento v10)
+//   prata  → vermelho  (#c84a4a)   cols 1-2
+//   outro  → amarelo   (#e8c127)   cols 3-4 + topo
+//   bronze → marrom    (#b97b3c)   cols 5-6
+//   ouro   → dourado   (#f9bf1b)   legado
+//   master → magenta   (#d14d8f)   legado
 // ═══════════════════════════════════════════
 export const standTypeColors: Record<StandType, string> = {
-    ouro: '#f9bf1b',     // amarelo dourado
-    prata: '#36b5b0',    // teal/cyan
-    bronze: '#b8b0d4',   // lavanda/lilás
-    master: '#d14d8f',   // rosa/magenta
-    bar: '#0e7490',
-    palco: '#1e293b',
-    area: '#059669',
+    prata:  '#c84a4a',   // vermelho (PRATA no mapa)
+    outro:  '#e8c127',   // amarelo  (OUTRO no mapa)
+    bronze: '#b97b3c',   // marrom   (BRONZE no mapa)
+    ouro:   '#f9bf1b',   // dourado
+    master: '#d14d8f',   // magenta
+    bar:    '#0e7490',
+    palco:  '#1e293b',
+    area:   '#059669',
+};
+
+export const standTypeBorderColors: Record<StandType, string> = {
+    prata:  '#ad3a3a',
+    outro:  '#ceaa1a',
+    bronze: '#9b652e',
+    ouro:   '#d4960e',
+    master: '#a83c70',
+    bar:    '#0c5f7a',
+    palco:  '#0f172a',
+    area:   '#047857',
 };
 
 // ═══════════════════════════════════════════
@@ -19,33 +35,23 @@ export const standTypeColors: Record<StandType, string> = {
 // ═══════════════════════════════════════════
 export const standStatusColors: Record<StandStatus, string> = {
     disponivel: '#22c55e',
-    reservado: '#eab308',
-    vendido: '#ef4444',
+    reservado:  '#eab308',
+    vendido:    '#ef4444',
 };
 
 export const standStatusLabels: Record<StandStatus, string> = {
     disponivel: 'Disponível',
-    reservado: 'Reservado',
-    vendido: 'Vendido',
+    reservado:  'Reservado',
+    vendido:    'Vendido',
 };
 
 export const standTypeLabels: Record<StandType, string> = {
-    ouro: 'Stand Ouro',
-    prata: 'Stand Prata',
-    bronze: 'Stand Bronze',
-    master: 'Stand Master',
-    bar: 'Bar',
-    palco: 'Palco',
-    area: 'Área',
-};
-
-// Cor da borda/glow por tipo
-export const standTypeBorderColors: Record<StandType, string> = {
-    ouro: '#d4960e',
-    prata: '#2a8a86',
-    bronze: '#8a82a8',
-    master: '#a83c70',
-    bar: '#0e7490',
-    palco: '#1e293b',
-    area: '#059669',
+    prata:  'Prata',
+    outro:  'Outro',
+    bronze: 'Bronze',
+    ouro:   'Ouro',
+    master: 'Master',
+    bar:    'Bar',
+    palco:  'Palco',
+    area:   'Área',
 };

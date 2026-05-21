@@ -397,69 +397,87 @@ export default function StandMap({ stands, onStandClick, selectedStandId }: Stan
                     {/* ─── ÁREAS ESPECIAIS ─── */}
                     {specialAreas.map((area) => (
                         <g key={area.id}>
+                            {/* Fundo */}
                             <rect
                                 x={area.x} y={area.y}
                                 width={area.width} height={area.height}
-                                rx={area.borderRadius ?? 2}
-                                fill={area.color}
-                                opacity={area.id === 'arquibancada-label-area' ? 0.85 : 0.25}
-                                stroke="none"
+                                rx={area.borderRadius ?? 4}
+                                fill={area.id === 'lounge' ? '#fef5ea' : area.color}
+                                opacity={area.id === 'lounge' ? 1 : 0.25}
+                                stroke={area.color}
+                                strokeWidth={area.id === 'lounge' ? 3 : 1.5}
+                                strokeOpacity={0.8}
                             />
-                            {/* WC — hachurado + label */}
-                            {area.id.startsWith('wc-') && (
-                                <>
-                                    <path
-                                        d={`M ${area.x + 3} ${area.y + 3} l ${area.width - 6} ${area.height - 6} M ${area.x + area.width - 3} ${area.y + 3} l ${-(area.width - 6)} ${area.height - 6}`}
-                                        stroke={area.color}
-                                        strokeWidth={0.8}
-                                        opacity={0.35}
-                                    />
-                                    <text
-                                        x={area.x + area.width / 2}
-                                        y={area.y + area.height / 2}
-                                        textAnchor="middle"
-                                        dominantBaseline="central"
-                                        fill={area.textColor || '#94a3b8'}
-                                        fontSize={area.fontSize || 10}
-                                        fontWeight="bold"
-                                        opacity={0.8}
-                                        className="select-none pointer-events-none"
-                                    >
-                                        WC
-                                    </text>
-                                </>
+                            {/* Hachura diagonal (lounge) */}
+                            {area.id === 'lounge' && (
+                                <path
+                                    d={(() => {
+                                        const lines = [];
+                                        const step = 17;
+                                        for (let i = -area.height; i < area.width + area.height; i += step) {
+                                            lines.push(`M ${area.x + Math.max(0, i)} ${area.y} L ${area.x + Math.min(area.width, i + area.height)} ${area.y + Math.min(area.height, i + area.height > area.width ? area.height - (i + area.height - area.width) : area.height)}`);
+                                        }
+                                        return lines.join(' ');
+                                    })()}
+                                    stroke={area.color}
+                                    strokeWidth={0.8}
+                                    opacity={0.07}
+                                    clipPath={`url(#clip-${area.id})`}
+                                />
                             )}
-                            {area.id === 'arquibancada-label-area' && (
+                            {/* Clip para hachura */}
+                            {area.id === 'lounge' && (
+                                <clipPath id={`clip-${area.id}`}>
+                                    <rect x={area.x} y={area.y} width={area.width} height={area.height} rx={area.borderRadius ?? 4} />
+                                </clipPath>
+                            )}
+                            {/* Ícone ☕ (lounge) */}
+                            {area.id === 'lounge' && (
                                 <text
                                     x={area.x + area.width / 2}
-                                    y={area.y + area.height / 2}
+                                    y={area.y + area.height / 2 - 38}
                                     textAnchor="middle"
                                     dominantBaseline="central"
-                                    fill="#f87171"
-                                    fontSize={13}
-                                    fontWeight="bold"
-                                    transform={`rotate(90, ${area.x + area.width / 2}, ${area.y + area.height / 2})`}
-                                    className="select-none pointer-events-none italic tracking-wider"
-                                >
-                                    ARQUIBANCADA / SAÍDAS →
-                                </text>
+                                    fontSize={30}
+                                    className="select-none pointer-events-none"
+                                >☕</text>
                             )}
-                            {area.label && !area.id.startsWith('wc-') && area.id !== 'arquibancada-label-area' && area.label.split('\n').map((line, li) => (
+                            {/* Label principal */}
+                            {area.label && (
                                 <text
-                                    key={`${area.id}-${li}`}
                                     x={area.x + area.width / 2}
-                                    y={area.y + area.height / 2 + li * 13 - ((area.label.split('\n').length - 1) * 6.5)}
+                                    y={area.y + area.height / 2 + (area.subLabel ? -4 : 0)}
                                     textAnchor="middle"
                                     dominantBaseline="central"
                                     fill={area.textColor || area.color}
-                                    fontSize={area.fontSize || 10}
-                                    fontWeight="bold"
-                                    opacity={0.8}
+                                    fontSize={area.fontSize || 14}
+                                    fontWeight="700"
+                                    fontStyle={area.id === 'lounge' ? 'italic' : 'normal'}
+                                    fontFamily={area.id === 'lounge' ? 'Georgia, serif' : 'inherit'}
+                                    letterSpacing={area.id === 'lounge' ? '0.2em' : '0'}
+                                    opacity={0.9}
                                     className="select-none pointer-events-none"
                                 >
-                                    {line}
+                                    {area.label}
                                 </text>
-                            ))}
+                            )}
+                            {/* SubLabel */}
+                            {area.subLabel && (
+                                <text
+                                    x={area.x + area.width / 2}
+                                    y={area.y + area.height / 2 + (area.fontSize || 14) + 8}
+                                    textAnchor="middle"
+                                    dominantBaseline="central"
+                                    fill={area.textColor || area.color}
+                                    fontSize={9}
+                                    fontWeight="500"
+                                    letterSpacing="0.2em"
+                                    opacity={0.65}
+                                    className="select-none pointer-events-none"
+                                >
+                                    {area.subLabel.toUpperCase()}
+                                </text>
+                            )}
                         </g>
                     ))}
 

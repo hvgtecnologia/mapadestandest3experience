@@ -20,6 +20,7 @@ export interface SpecialArea {
     textColor?: string;
     fontSize?: number;
     borderRadius?: number;
+    subLabel?: string;
 }
 
 export interface Corridor {
@@ -40,37 +41,38 @@ export interface MapAnnotation {
 }
 
 // ============================================================
-//  MAPA T3 — 114 stands sequenciais (1 a 114)
+//  MAPA T3 — 97 stands sequenciais (1 a 97)
 //
-//  Baseado EXATAMENTE no HTML de referência (v7):
-//  Canvas: 940 × 920 px
-//  Célula:  72 × 50 px  (interna)
+//  Baseado EXATAMENTE no HTML mapa_evento.html (v10):
+//  Canvas: 1020 × 920 px
+//  Célula:  44 × 44 px  (interna)
 //  Bloco:   padding=4, gap=2
-//  Corredor entre blocos: 66 px
+//
+//  CATEGORIAS (tipo):
+//    prata  → vermelho  (#c84a4a)  cols 1-2  (01-30)
+//    outro  → amarelo   (#e8c127)  cols 3-4 + topo (31-60 + 91-97)
+//    bronze → marrom    (#b97b3c)  cols 5-6  (61-90)
 //
 //  Blocos (top | left | w | h):
-//    strip-top (43-46):   60  | 324 | 302 |  58
-//    col1      (01-14):  110  |  32 |  80 | 734
-//    pair1     (15-38):  110  | 178 | 154 | 630
-//    pair2     (47-72):  162  | 398 | 154 | 682
-//    pair3     (76-99):  110  | 618 | 154 | 630
-//    col-right (101-114):110  | 838 |  80 | 734
-//    bot-left  (39-42):  836  | 104 | 302 |  58
-//    bot-right (73-75,100):836| 544 | 302 |  58
+//    block-top  (91-97):   100 | 224 | 328 | 52   (1×7)
+//    block-col-1 (01-15):  180 |  32 |  52 | 696  (15×1) PRATA
+//    block-col-2 (16-30):  180 | 114 |  52 | 696  (15×1) PRATA
+//    block-col-3 (31-45):  180 | 196 |  52 | 696  (15×1) OUTRO
+//    lounge:               280 | 288 | 200 | 496
+//    block-col-4 (46-60):  180 | 528 |  52 | 696  (15×1) OUTRO
+//    block-col-5 (61-75):  180 | 610 |  52 | 696  (15×1) BRONZE
+//    block-col-6 (76-90):  180 | 692 |  52 | 696  (15×1) BRONZE
 // ============================================================
 
-export const SVG_W = 940;
+export const SVG_W = 1020;
 export const SVG_H = 920;
 
-// Dimensões de célula (interna, sem padding do bloco)
-const CW = 72;   // cell width
-const CH = 50;   // cell height
+// Dimensões da célula (interna, sem padding do bloco)
+const CW = 44;   // cell width
+const CH = 44;   // cell height
 const BP = 4;    // block padding
 const CG = 2;    // cell gap
 
-// Helper: calcula posições SVG das células dentro de um bloco
-// blockLeft, blockTop = coordenadas absolutas do bloco
-// col, row (0-indexed) = posição da célula dentro do bloco
 function cellPos(blockLeft: number, blockTop: number, col: number, row: number) {
     return {
         x: blockLeft + BP + col * (CW + CG),
@@ -78,145 +80,118 @@ function cellPos(blockLeft: number, blockTop: number, col: number, row: number) 
     };
 }
 
-const PAD = 0;  // as posições já incluem o padding do bloco
+function addStand(
+    positions: StandPosition[],
+    n: number,
+    tipo: StandType,
+    blockL: number,
+    blockT: number,
+    col: number,
+    row: number
+) {
+    const { x, y } = cellPos(blockL, blockT, col, row);
+    positions.push({ numero: n, tipo, x, y, width: CW, height: CH });
+}
 
 // ============================================================
 //  POSIÇÕES DOS STANDS
 // ============================================================
 export const standPositions: StandPosition[] = [];
 
-function addStand(n: number, blockL: number, blockT: number, col: number, row: number) {
-    const { x, y } = cellPos(blockL, blockT, col, row);
-    standPositions.push({
-        numero: n,
-        tipo: 'prata',
-        x,
-        y,
-        width: CW,
-        height: CH,
-    });
-}
+// ── TIRA TOPO: 91-97 (OUTRO — amarelo, 1 linha × 7 colunas) ──
+// block-top: top=100, left=224, w=328, h=52
+const TOP_L = 224, TOP_T = 100;
+[91, 92, 93, 94, 95, 96, 97].forEach((n, col) =>
+    addStand(standPositions, n, 'outro', TOP_L, TOP_T, col, 0)
+);
 
-// ── TIRA SUPERIOR: 43, 44, 45, 46 (1 linha × 4 colunas) ──
-// block: top=60, left=324, w=302, h=58
-const STRIP_TOP_L = 324, STRIP_TOP_T = 60;
-[43, 44, 45, 46].forEach((n, col) => addStand(n, STRIP_TOP_L, STRIP_TOP_T, col, 0));
+// ── COL 1: 01-15 (PRATA — vermelho, 15 linhas × 1 coluna) ──
+// block-col-1: top=180, left=32, w=52, h=696
+const C1_L = 32, C1_T = 180;
+for (let r = 0; r < 15; r++) addStand(standPositions, 1 + r, 'prata', C1_L, C1_T, 0, r);
 
-// ── COLUNA 1: 01-14 (14 linhas × 1 coluna) ──
-// block: top=110, left=32, w=80, h=734
-const COL1_L = 32, COL1_T = 110;
-for (let i = 0; i < 14; i++) addStand(i + 1, COL1_L, COL1_T, 0, i);
+// ── COL 2: 16-30 (PRATA — vermelho, 15 linhas × 1 coluna) ──
+// block-col-2: top=180, left=114
+const C2_L = 114, C2_T = 180;
+for (let r = 0; r < 15; r++) addStand(standPositions, 16 + r, 'prata', C2_L, C2_T, 0, r);
 
-// ── PAR 1: 15-26 esq | 38-27 dir (12 linhas × 2 colunas) ──
-// block: top=110, left=178, w=154, h=630
-const PAIR1_L = 178, PAIR1_T = 110;
-for (let r = 0; r < 12; r++) {
-    addStand(15 + r, PAIR1_L, PAIR1_T, 0, r);   // coluna esq: 15,16,...,26
-    addStand(38 - r, PAIR1_L, PAIR1_T, 1, r);   // coluna dir: 38,37,...,27
-}
+// ── COL 3: 31-45 (OUTRO — amarelo, 15 linhas × 1 coluna) ──
+// block-col-3: top=180, left=196
+const C3_L = 196, C3_T = 180;
+for (let r = 0; r < 15; r++) addStand(standPositions, 31 + r, 'outro', C3_L, C3_T, 0, r);
 
-// ── PAR 2: U-shape (13 linhas × 2 colunas) ──
-// esq: 47→59 (desce);  dir: 72→60 (desce)
-// block: top=162, left=398, w=154, h=682
-const PAIR2_L = 398, PAIR2_T = 162;
-for (let r = 0; r < 13; r++) {
-    addStand(47 + r, PAIR2_L, PAIR2_T, 0, r);   // esq: 47,48,...,59
-    addStand(72 - r, PAIR2_L, PAIR2_T, 1, r);   // dir: 72,71,...,60
-}
+// ── COL 4: 46-60 (OUTRO — amarelo, 15 linhas × 1 coluna) ──
+// block-col-4: top=180, left=528
+const C4_L = 528, C4_T = 180;
+for (let r = 0; r < 15; r++) addStand(standPositions, 46 + r, 'outro', C4_L, C4_T, 0, r);
 
-// ── PAR 3: 87-76 esq | 88-99 dir (12 linhas × 2 colunas) ──
-// block: top=110, left=618, w=154, h=630
-const PAIR3_L = 618, PAIR3_T = 110;
-for (let r = 0; r < 12; r++) {
-    addStand(87 - r, PAIR3_L, PAIR3_T, 0, r);   // esq: 87,86,...,76
-    addStand(88 + r, PAIR3_L, PAIR3_T, 1, r);   // dir: 88,89,...,99
-}
+// ── COL 5: 61-75 (BRONZE — marrom, 15 linhas × 1 coluna) ──
+// block-col-5: top=180, left=610
+const C5_L = 610, C5_T = 180;
+for (let r = 0; r < 15; r++) addStand(standPositions, 61 + r, 'bronze', C5_L, C5_T, 0, r);
 
-// ── COLUNA DIREITA: 114-101 (14 linhas × 1 coluna) ──
-// block: top=110, left=838, w=80, h=734
-const COLR_L = 838, COLR_T = 110;
-for (let i = 0; i < 14; i++) addStand(114 - i, COLR_L, COLR_T, 0, i);
-
-// ── TIRA INFERIOR ESQUERDA: 39, 40, 41, 42 (1 linha × 4 colunas) ──
-// block: top=836, left=104, w=302, h=58
-const BOT_L_L = 104, BOT_L_T = 836;
-[39, 40, 41, 42].forEach((n, col) => addStand(n, BOT_L_L, BOT_L_T, col, 0));
-
-// ── TIRA INFERIOR DIREITA: 73, 74, 75, 100 (1 linha × 4 colunas) ──
-// block: top=836, left=544, w=302, h=58
-const BOT_R_L = 544, BOT_R_T = 836;
-[73, 74, 75, 100].forEach((n, col) => addStand(n, BOT_R_L, BOT_R_T, col, 0));
+// ── COL 6: 76-90 (BRONZE — marrom, 15 linhas × 1 coluna) ──
+// block-col-6: top=180, left=692
+const C6_L = 692, C6_T = 180;
+for (let r = 0; r < 15; r++) addStand(standPositions, 76 + r, 'bronze', C6_L, C6_T, 0, r);
 
 // ============================================================
-//  ÁREAS ESPECIAIS (sem WC no HTML — apenas arquibancada)
+//  ÁREA LOUNGE (área especial central)
 // ============================================================
 export const specialAreas: SpecialArea[] = [
     {
-        id: 'arquibancada-label-area',
-        label: '',
-        x: SVG_W - 14,
-        y: 110,
-        width: 3,
-        height: 734,
-        color: '#e74c3c',
-        borderRadius: 2,
+        id: 'lounge',
+        label: 'LOUNGE',
+        subLabel: 'Área de Descanso',
+        x: 288,
+        y: 280,
+        width: 200,
+        height: 496,
+        color: '#c08470',
+        textColor: '#8b5a45',
+        fontSize: 22,
+        borderRadius: 14,
     },
 ];
 
 // ============================================================
-//  CORREDORES (áreas de corredor para fundo visual)
+//  CORREDORES (fundo visual entre colunas)
 // ============================================================
 export const corridors: Corridor[] = [
-    // Corredor esq (entre col1 e pair1)
-    { x: 32 + 80, y: 110, width: 178 - (32 + 80), height: 734 },
-    // Corredor entre pair1 e pair2
-    { x: 178 + 154, y: 60, width: 398 - (178 + 154), height: 836 - 60 },
-    // Corredor entre pair2 e pair3
-    { x: 398 + 154, y: 110, width: 618 - (398 + 154), height: 682 },
-    // Corredor dir (entre pair3 e col-right)
-    { x: 618 + 154, y: 110, width: 838 - (618 + 154), height: 734 },
+    // Entre col1 e col2
+    { x: 32 + 52, y: 180, width: 114 - (32 + 52), height: 696 },
+    // Entre col2 e col3
+    { x: 114 + 52, y: 180, width: 196 - (114 + 52), height: 696 },
+    // Entre col4 e col5
+    { x: 528 + 52, y: 180, width: 610 - (528 + 52), height: 696 },
+    // Entre col5 e col6
+    { x: 610 + 52, y: 180, width: 692 - (610 + 52), height: 696 },
 ];
 
 // ============================================================
 //  ANOTAÇÕES
-//  Posições calculadas com base nas constantes do layout:
-//    COL1_L=32, COLR_L=838, COLR_T=110, CW=72, CH=50, BP=4
-//    Stand 01 centro x = 32+4+36 = 72 | y topo = 110
-//    Stand 114 centro x = 838+4+36 = 878 | y topo = 110
 // ============================================================
 export const annotations: MapAnnotation[] = [
-    // Label ARQUIBANCADA vertical (linha vermelha lateral)
-    {
-        type: 'text',
-        label: 'ARQUIBANCADA / SAÍDAS →',
-        x: SVG_W - 7,
-        y: 110 + 734 / 2,
-        rotation: 90,
-        fontSize: 11,
-        color: '#e74c3c',
-    },
-    // ── ENTRADA — acima do stand 01 (topo col esquerda, início do corredor) ──
     {
         type: 'entrance',
         label: '↩ ENTRADA',
-        x: 72,          // centro da col1 (32+4+36)
-        y: 90,          // acima do bloco (110 - 20)
-        fontSize: 11,
+        x: 32 + 26,      // centro da col1
+        y: 160,
+        fontSize: 10,
         color: '#22c55e',
     },
-    // ── SAÍDA / PRAÇA DE ALIMENTAÇÃO — acima do stand 114 (final do corredor) ──
     {
         type: 'entrance',
         label: 'SAÍDA / PRAÇA DE ALIMENTAÇÃO ↪',
-        x: 878,         // centro da col-right (838+4+36)
-        y: 90,          // mesma altura da ENTRADA
-        fontSize: 10,
+        x: 692 + 26,     // centro da col6
+        y: 160,
+        fontSize: 9,
         color: '#f97316',
     },
 ];
 
 // ============================================================
-//  GERADOR DE MOCK — todos disponíveis, todos prata
+//  GERADOR DE MOCK — todos disponíveis, tipos já definidos
 // ============================================================
 export function generateMockStands(): Stand[] {
     return standPositions.map((pos) => ({
@@ -224,7 +199,7 @@ export function generateMockStands(): Stand[] {
         numero: pos.numero,
         status: 'disponivel',
         empresa: null,
-        tipo: 'prata',
+        tipo: pos.tipo,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
     }));

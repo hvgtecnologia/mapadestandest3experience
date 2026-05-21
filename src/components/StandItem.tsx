@@ -15,9 +15,9 @@ interface StandItemProps {
 
 export default function StandItem({ position, stand, onClick, isSelected, isHighlighted }: StandItemProps) {
     const status = stand?.status || 'disponivel';
-    // position.tipo é a fonte de verdade visual (definido no mapLayout)
-    // stand.tipo do DB pode divergir se o SQL ainda não foi executado
-    const tipo = position.tipo || stand?.tipo || 'prata';
+    // stand.tipo (DB) tem prioridade — permite admin mudar cor alterando o tipo
+    // position.tipo (mapLayout) é só o default inicial quando não há dado no banco
+    const tipo = stand?.tipo || position.tipo || 'prata';
     const empresa = stand?.empresa;
 
     const fillColor = standTypeColors[tipo] || '#2e8585';

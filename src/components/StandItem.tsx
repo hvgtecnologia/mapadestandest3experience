@@ -15,20 +15,23 @@ interface StandItemProps {
 
 export default function StandItem({ position, stand, onClick, isSelected, isHighlighted }: StandItemProps) {
     const status = stand?.status || 'disponivel';
-    const tipo = stand?.tipo || position.tipo;
+    // position.tipo é a fonte de verdade visual (definido no mapLayout)
+    // stand.tipo do DB pode divergir se o SQL ainda não foi executado
+    const tipo = position.tipo || stand?.tipo || 'prata';
     const empresa = stand?.empresa;
 
     const fillColor = standTypeColors[tipo] || '#2e8585';
     const borderColor = standTypeBorderColors[tipo] || '#0d2340';
     const statusColor = standStatusColors[status];
 
-    // Tamanhos fixos baseados na célula 72×50 do HTML de referência
-    const numFontSize = 16;   // HTML usa font-size: 17px
-    const subFontSize = 10;
-    const dotR = 3;           // HTML usa dot de 5px (raio=2.5)
+    // Tamanhos baseados na célula 44×44 do novo mapa
+    const numFontSize = Math.max(11, Math.round(position.height * 0.27));
+    const subFontSize = 9;
+    const dotR = 2.5;
 
-    const textColor    = (tipo === 'ouro' || tipo === 'bronze') ? '#1e293b' : '#ffffff';
-    const subTextColor = (tipo === 'ouro' || tipo === 'bronze') ? '#374151' : '#e2e8f0';
+    // Texto escuro em fundos claros (outro=amarelo, ouro=dourado)
+    const textColor    = (tipo === 'outro' || tipo === 'ouro') ? '#1a2540' : '#ffffff';
+    const subTextColor = (tipo === 'outro' || tipo === 'ouro') ? '#374151' : '#e2e8f0';
 
     const cx = position.x + position.width / 2;
     const cy = position.y + position.height / 2;

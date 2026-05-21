@@ -180,14 +180,6 @@ export const annotations: MapAnnotation[] = [
         fontSize: 10,
         color: '#22c55e',
     },
-    {
-        type: 'entrance',
-        label: 'SAÍDA / PRAÇA DE ALIMENTAÇÃO ↪',
-        x: 692 + 26,     // centro da col6
-        y: 160,
-        fontSize: 9,
-        color: '#f97316',
-    },
 ];
 
 // ============================================================

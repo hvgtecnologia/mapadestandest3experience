@@ -13,6 +13,7 @@ interface StandMapProps {
 }
 
 const MIN_ZOOM = 0.4;
+const FULLSCREEN_CLASS = 'standmap-fullscreen';
 const MAX_ZOOM = 4;
 
 export default function StandMap({ stands, onStandClick, selectedStandId }: StandMapProps) {
@@ -253,6 +254,23 @@ export default function StandMap({ stands, onStandClick, selectedStandId }: Stan
 
     const zoomPercent = Math.round(zoom * 100);
 
+    /* ── Fullscreen ── */
+    const [isFullscreen, setIsFullscreen] = useState(false);
+    const toggleFullscreen = useCallback(async () => {
+        const el = containerRef.current;
+        if (!el) return;
+        if (!document.fullscreenElement) {
+            await el.requestFullscreen();
+        } else {
+            await document.exitFullscreen();
+        }
+    }, []);
+    useEffect(() => {
+        const onChange = () => setIsFullscreen(!!document.fullscreenElement);
+        document.addEventListener('fullscreenchange', onChange);
+        return () => document.removeEventListener('fullscreenchange', onChange);
+    }, []);
+
     return (
         <div ref={containerRef} className="relative w-full overflow-hidden bg-gray-950 rounded-2xl border border-gray-700/50 shadow-2xl">
             {/* ═══ TOP BAR ═══ */}
@@ -311,6 +329,15 @@ export default function StandMap({ stands, onStandClick, selectedStandId }: Stan
                         onClick={handleZoomIn}
                         className="w-8 h-8 rounded-lg bg-gray-800/90 hover:bg-gray-700 text-white flex items-center justify-center text-base font-bold border border-gray-600/50 transition-all active:scale-95"
                     >+</button>
+
+                    {/* Fullscreen */}
+                    <button
+                        onClick={toggleFullscreen}
+                        title={isFullscreen ? 'Sair da tela cheia (ESC)' : 'Tela cheia'}
+                        className="w-8 h-8 ml-1 rounded-lg bg-gray-800/90 hover:bg-amber-600 text-white flex items-center justify-center border border-gray-600/50 transition-all active:scale-95 text-sm"
+                    >
+                        {isFullscreen ? '⊠' : '⛶'}
+                    </button>
                 </div>
             </div>
 

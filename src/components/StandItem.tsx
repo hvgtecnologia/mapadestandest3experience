@@ -29,9 +29,9 @@ export default function StandItem({ position, stand, onClick, isSelected, isHigh
     const subFontSize = 9;
     const dotR = 2.5;
 
-    // Texto escuro em fundos claros (outro=amarelo, ouro=dourado)
-    const textColor    = (tipo === 'outro' || tipo === 'ouro') ? '#1a2540' : '#ffffff';
-    const subTextColor = (tipo === 'outro' || tipo === 'ouro') ? '#374151' : '#e2e8f0';
+    // Texto escuro em fundos claros (prata=prateado, outro=amarelo, ouro=dourado)
+    const textColor    = (tipo === 'prata' || tipo === 'outro' || tipo === 'ouro') ? '#1a2540' : '#ffffff';
+    const subTextColor = (tipo === 'prata' || tipo === 'outro' || tipo === 'ouro') ? '#374151' : '#e2e8f0';
 
     const cx = position.x + position.width / 2;
     const cy = position.y + position.height / 2;

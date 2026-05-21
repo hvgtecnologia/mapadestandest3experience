@@ -1,10 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { useStands } from '@/hooks/useStands';
 import StandMap from '@/components/StandMap';
 import StandModal from '@/components/StandModal';
-import Legend from '@/components/Legend';
 import DashboardStats from '@/components/DashboardStats';
 import { Stand } from '@/types/stand';
 import Link from 'next/link';
@@ -13,6 +12,8 @@ export default function HomePage() {
   const { stands, loading, stats, updateStand } = useStands();
   const [selectedStand, setSelectedStand] = useState<Stand | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const mapWrapperRef = useRef<HTMLDivElement>(null);
 
   const handleStandClick = (stand: Stand) => {
     setSelectedStand(stand);
@@ -23,6 +24,23 @@ export default function HomePage() {
     setIsModalOpen(false);
     setSelectedStand(null);
   };
+
+  const toggleFullscreen = useCallback(async () => {
+    if (!document.fullscreenElement) {
+      await mapWrapperRef.current?.requestFullscreen();
+      setIsFullscreen(true);
+    } else {
+      await document.exitFullscreen();
+      setIsFullscreen(false);
+    }
+  }, []);
+
+  // Listener para ESC sair do fullscreen
+  React.useEffect(() => {
+    const onFsChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', onFsChange);
+    return () => document.removeEventListener('fullscreenchange', onFsChange);
+  }, []);
 
   if (loading) {
     return (
@@ -60,47 +78,28 @@ export default function HomePage() {
         <DashboardStats stats={stats} />
       </div>
 
-      {/* Map + Legend */}
+      {/* Map — largura total */}
       <main className="max-w-[1400px] mx-auto px-4 sm:px-6 pb-8">
-        <div className="flex flex-col lg:flex-row gap-6">
-          {/* Map */}
-          <div className="flex-1 min-w-0">
-            <StandMap
-              stands={stands}
-              onStandClick={handleStandClick}
-              selectedStandId={selectedStand?.id}
-            />
-          </div>
+        <div
+          ref={mapWrapperRef}
+          className="relative"
+          style={isFullscreen ? { background: '#0f172a', padding: '1rem' } : {}}
+        >
+          {/* Botão fullscreen */}
+          <button
+            onClick={toggleFullscreen}
+            title={isFullscreen ? 'Sair da tela cheia' : 'Tela cheia'}
+            className="absolute top-3 right-3 z-20 w-9 h-9 flex items-center justify-center rounded-xl bg-gray-800/90 hover:bg-gray-700 text-white border border-gray-600/50 transition-all shadow-lg text-base"
+          >
+            {isFullscreen ? '⛶' : '⛶'}
+            <span className="sr-only">{isFullscreen ? 'Sair fullscreen' : 'Fullscreen'}</span>
+          </button>
 
-          {/* Sidebar */}
-          <div className="lg:w-52 flex-shrink-0 space-y-4">
-            <Legend stats={stats} />
-
-            {/* Quick info */}
-            <div className="bg-gray-900/80 backdrop-blur-md rounded-2xl p-5 border border-gray-700/50 shadow-xl">
-              <h3 className="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-3">
-                Instruções
-              </h3>
-              <ul className="space-y-2 text-xs text-gray-400">
-                <li className="flex gap-2">
-                  <span>👆</span>
-                  <span>Clique em um stand para ver detalhes</span>
-                </li>
-                <li className="flex gap-2">
-                  <span>🔍</span>
-                  <span>Busque por número ou empresa no campo de busca</span>
-                </li>
-                <li className="flex gap-2">
-                  <span>🔎</span>
-                  <span>Scroll ou pinch para zoom • arraste para mover</span>
-                </li>
-                <li className="flex gap-2">
-                  <span>⚙️</span>
-                  <span>Use o painel Admin para editar stands</span>
-                </li>
-              </ul>
-            </div>
-          </div>
+          <StandMap
+            stands={stands}
+            onStandClick={handleStandClick}
+            selectedStandId={selectedStand?.id}
+          />
         </div>
       </main>
 
@@ -111,7 +110,7 @@ export default function HomePage() {
         </p>
       </footer>
 
-      {/* Modal (view only on home page) */}
+      {/* Modal */}
       <StandModal
         stand={selectedStand}
         isOpen={isModalOpen}

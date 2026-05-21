@@ -160,8 +160,9 @@ export default function AdminPage() {
                     >
                         <option value="todos">Todos os tipos</option>
                         <option value="ouro">🥇 Ouro</option>
-                        <option value="prata">🥈 Prata</option>
-                        <option value="bronze">🥉 Bronze</option>
+                        <option value="prata">🔴 Prata</option>
+                        <option value="outro">🟡 Outro</option>
+                        <option value="bronze">🟤 Bronze</option>
                         <option value="master">⭐ Master</option>
                     </select>
                 </div>

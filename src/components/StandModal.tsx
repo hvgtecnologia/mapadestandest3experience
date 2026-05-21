@@ -196,8 +196,9 @@ export default function StandModal({ stand, isOpen, onClose, onSave, isAdmin = f
                                     className="w-full bg-gray-800 border border-gray-600 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none"
                                 >
                                     <option value="ouro">🥇 Ouro</option>
-                                    <option value="prata">🥈 Prata</option>
-                                    <option value="bronze">🥉 Bronze</option>
+                                    <option value="prata">🔴 Prata</option>
+                                    <option value="outro">🟡 Outro</option>
+                                    <option value="bronze">🟤 Bronze</option>
                                     <option value="master">⭐ Master</option>
                                 </select>
                             </div>

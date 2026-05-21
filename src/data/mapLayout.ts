@@ -105,15 +105,15 @@ const TOP_L = 224, TOP_T = 100;
     addStand(standPositions, n, 'outro', TOP_L, TOP_T, col, 0)
 );
 
-// ── COL 1: 01-15 (PRATA — vermelho, 15 linhas × 1 coluna) ──
-// block-col-1: top=180, left=32, w=52, h=696
+// ── COL 1: stand 01 = prata, 02-15 = bronze ──
 const C1_L = 32, C1_T = 180;
-for (let r = 0; r < 15; r++) addStand(standPositions, 1 + r, 'prata', C1_L, C1_T, 0, r);
+addStand(standPositions, 1, 'prata', C1_L, C1_T, 0, 0);
+for (let r = 1; r < 15; r++) addStand(standPositions, 1 + r, 'bronze', C1_L, C1_T, 0, r);
 
-// ── COL 2: 16-30 (PRATA — vermelho, 15 linhas × 1 coluna) ──
-// block-col-2: top=180, left=114
+// ── COL 2: stand 16 = prata, 17-30 = bronze ──
 const C2_L = 114, C2_T = 180;
-for (let r = 0; r < 15; r++) addStand(standPositions, 16 + r, 'prata', C2_L, C2_T, 0, r);
+addStand(standPositions, 16, 'prata', C2_L, C2_T, 0, 0);
+for (let r = 1; r < 15; r++) addStand(standPositions, 16 + r, 'bronze', C2_L, C2_T, 0, r);
 
 // ── COL 3: 31-45 (OUTRO — amarelo, 15 linhas × 1 coluna) ──
 // block-col-3: top=180, left=196
@@ -125,15 +125,15 @@ for (let r = 0; r < 15; r++) addStand(standPositions, 31 + r, 'outro', C3_L, C3_
 const C4_L = 528, C4_T = 180;
 for (let r = 0; r < 15; r++) addStand(standPositions, 46 + r, 'outro', C4_L, C4_T, 0, r);
 
-// ── COL 5: 61-75 (BRONZE — marrom, 15 linhas × 1 coluna) ──
-// block-col-5: top=180, left=610
+// ── COL 5: stand 61 = bronze, 62-75 = prata ──
 const C5_L = 610, C5_T = 180;
-for (let r = 0; r < 15; r++) addStand(standPositions, 61 + r, 'bronze', C5_L, C5_T, 0, r);
+addStand(standPositions, 61, 'bronze', C5_L, C5_T, 0, 0);
+for (let r = 1; r < 15; r++) addStand(standPositions, 61 + r, 'prata', C5_L, C5_T, 0, r);
 
-// ── COL 6: 76-90 (BRONZE — marrom, 15 linhas × 1 coluna) ──
-// block-col-6: top=180, left=692
+// ── COL 6: stand 76 = bronze, 77-90 = prata ──
 const C6_L = 692, C6_T = 180;
-for (let r = 0; r < 15; r++) addStand(standPositions, 76 + r, 'bronze', C6_L, C6_T, 0, r);
+addStand(standPositions, 76, 'bronze', C6_L, C6_T, 0, 0);
+for (let r = 1; r < 15; r++) addStand(standPositions, 76 + r, 'prata', C6_L, C6_T, 0, r);
 
 // ============================================================
 //  ÁREA LOUNGE (área especial central)

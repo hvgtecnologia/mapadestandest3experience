@@ -5,7 +5,7 @@ import { supabase } from '@/services/supabaseClient';
 import { Stand, StandStatus } from '@/types/stand';
 import { generateMockStands, standPositions } from '@/data/mapLayout';
 
-const USE_MOCK = !process.env.NEXT_PUBLIC_SUPABASE_URL;
+const USE_MOCK = false;
 
 export function useStands() {
     const [stands, setStands] = useState<Stand[]>([]);

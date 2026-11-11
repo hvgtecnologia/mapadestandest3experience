@@ -3,6 +3,7 @@ import { Stand, StandType } from '@/types/stand';
 export interface StandPosition {
     numero: number;
     tipo: StandType;
+    setor: number;
     x: number;
     y: number;
     width: number;
@@ -21,6 +22,7 @@ export interface SpecialArea {
     fontSize?: number;
     borderRadius?: number;
     subLabel?: string;
+    rotation?: number;
 }
 
 export interface Corridor {
@@ -40,150 +42,290 @@ export interface MapAnnotation {
     color?: string;
 }
 
+export interface Sector {
+    numero: number;
+    nome: string;
+    /** posição da etiqueta (pill) do setor */
+    labelX: number;
+    labelY: number;
+    labelW: number;
+    /** esconde o círculo com o número (áreas que não são setores numerados) */
+    hideBadge?: boolean;
+}
+
 // ============================================================
-//  MAPA T3 — 97 stands sequenciais (1 a 97)
+//  MAPA T3 2027 — Centro de Eventos Sociedade Rural
 //
-//  Baseado EXATAMENTE no HTML mapa_evento.html (v10):
-//  Canvas: 1020 × 920 px
-//  Célula:  44 × 44 px  (interna)
-//  Bloco:   padding=4, gap=2
+//  Visual:     "Mapa de Setores" (21 setores com etiqueta)
+//  Quantidade/setores: DWG "MAPA t3 2027.dwg" (Layout1)
 //
-//  CATEGORIAS (tipo):
-//    prata  → vermelho  (#c84a4a)  cols 1-2  (01-30)
-//    outro  → amarelo   (#e8c127)  cols 3-4 + topo (31-60 + 91-97)
-//    bronze → marrom    (#b97b3c)  cols 5-6  (61-90)
+//  Numeração (sequencial; dentro do bloco: esquerda→direita, cima→baixo):
+//    1–247   setores 1 a 21
+//    248–253 Alimentação (tendas 10×10m)
+//    254–259 Bar (tendas 10×10m)
 //
-//  Blocos (top | left | w | h):
-//    block-top  (91-97):   100 | 224 | 328 | 52   (1×7)
-//    block-col-1 (01-15):  180 |  32 |  52 | 696  (15×1) PRATA
-//    block-col-2 (16-30):  180 | 114 |  52 | 696  (15×1) PRATA
-//    block-col-3 (31-45):  180 | 196 |  52 | 696  (15×1) OUTRO
-//    lounge:               280 | 288 | 200 | 496
-//    block-col-4 (46-60):  180 | 528 |  52 | 696  (15×1) OUTRO
-//    block-col-5 (61-75):  180 | 610 |  52 | 696  (15×1) BRONZE
-//    block-col-6 (76-90):  180 | 692 |  52 | 696  (15×1) BRONZE
+//  O "miolo" (setores 1–21) é desenhado em coordenadas próprias e
+//  depois deslocado OY px para baixo, abrindo espaço para a faixa
+//  superior (Feirão, Credenciamento, Alimentação/Bar, W.C, Currais).
 // ============================================================
 
-export const SVG_W = 1020;
-export const SVG_H = 920;
+export const SVG_W = 1600;
+export const SVG_H = 1810;
+const OY = 330;
 
-// Dimensões da célula (interna, sem padding do bloco)
-const CW = 44;   // cell width
-const CH = 44;   // cell height
+const CW = 32;   // cell width
+const CH = 32;   // cell height
 const BP = 4;    // block padding
 const CG = 2;    // cell gap
 
-function cellPos(blockLeft: number, blockTop: number, col: number, row: number) {
-    return {
-        x: blockLeft + BP + col * (CW + CG),
-        y: blockTop  + BP + row * (CH + CG),
-    };
-}
-
-function addStand(
-    positions: StandPosition[],
-    n: number,
-    tipo: StandType,
-    blockL: number,
-    blockT: number,
-    col: number,
-    row: number
-) {
-    const { x, y } = cellPos(blockL, blockT, col, row);
-    positions.push({ numero: n, tipo, x, y, width: CW, height: CH });
-}
-
-// ============================================================
-//  POSIÇÕES DOS STANDS
-// ============================================================
 export const standPositions: StandPosition[] = [];
+export const sectors: Sector[] = [];
 
-// ── TIRA TOPO: 91-97 (OUTRO — amarelo, 1 linha × 7 colunas) ──
-// block-top: top=100, left=224, w=328, h=52
-const TOP_L = 224, TOP_T = 100;
-[91, 92, 93, 94, 95, 96, 97].forEach((n, col) =>
-    addStand(standPositions, n, 'outro', TOP_L, TOP_T, col, 0)
-);
+let nextNumero = 1;
 
-// ── COL 1: stand 01 = prata, 02-15 = bronze ──
-const C1_L = 32, C1_T = 180;
-addStand(standPositions, 1, 'prata', C1_L, C1_T, 0, 0);
-for (let r = 1; r < 15; r++) addStand(standPositions, 1 + r, 'bronze', C1_L, C1_T, 0, r);
+/** Adiciona um bloco de stands (rows × cols) numerado em ordem de leitura. */
+function addBlock(setor: number, left: number, top: number, rows: number, cols: number, tipo: StandType = 'prata') {
+    for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+            standPositions.push({
+                numero: nextNumero++,
+                tipo,
+                setor,
+                x: left + BP + c * (CW + CG),
+                y: top + BP + r * (CH + CG),
+                width: CW,
+                height: CH,
+            });
+        }
+    }
+}
 
-// ── COL 2: stand 16 = prata, 17-30 = bronze ──
-const C2_L = 114, C2_T = 180;
-addStand(standPositions, 16, 'prata', C2_L, C2_T, 0, 0);
-for (let r = 1; r < 15; r++) addStand(standPositions, 16 + r, 'bronze', C2_L, C2_T, 0, r);
+function sector(numero: number, nome: string, labelX: number, labelY: number, labelW: number, hideBadge = false) {
+    sectors.push({ numero, nome, labelX, labelY, labelW, hideBadge });
+}
 
-// ── COL 3: 31-45 (OUTRO — amarelo, 15 linhas × 1 coluna) ──
-// block-col-3: top=180, left=196
-const C3_L = 196, C3_T = 180;
-for (let r = 0; r < 15; r++) addStand(standPositions, 31 + r, 'outro', C3_L, C3_T, 0, r);
+/** Soma dy a todas as coordenadas Y de um path "M x y L x y ..." */
+function shiftPath(d: string, dy: number) {
+    let i = 0;
+    return d.replace(/-?\d+(\.\d+)?/g, (n) => (i++ % 2 === 1 ? String(Number(n) + dy) : n));
+}
 
-// ── COL 4: 46-60 (OUTRO — amarelo, 15 linhas × 1 coluna) ──
-// block-col-4: top=180, left=528
-const C4_L = 528, C4_T = 180;
-for (let r = 0; r < 15; r++) addStand(standPositions, 46 + r, 'outro', C4_L, C4_T, 0, r);
+// ════════════════════════════════════════════════════════════
+//  MIOLO — setores 1 a 21 (coordenadas locais, deslocadas por OY)
+// ════════════════════════════════════════════════════════════
 
-// ── COL 5: stand 61 = bronze, 62-75 = prata ──
-const C5_L = 610, C5_T = 180;
-addStand(standPositions, 61, 'bronze', C5_L, C5_T, 0, 0);
-for (let r = 1; r < 15; r++) addStand(standPositions, 61 + r, 'prata', C5_L, C5_T, 0, r);
+// ── Colunas verticais ────────────────────────────────────────
+sector(1, 'Industrial', 250, 140, 200);
+addBlock(1, 470, 110, 15, 1);
+sector(2, 'Instituições', 640, 140, 220);
+addBlock(2, 570, 110, 15, 1);
 
-// ── COL 6: stand 76 = bronze, 77-90 = prata ──
-const C6_L = 692, C6_T = 180;
-addStand(standPositions, 76, 'bronze', C6_L, C6_T, 0, 0);
-for (let r = 1; r < 15; r++) addStand(standPositions, 76 + r, 'prata', C6_L, C6_T, 0, r);
+// ── Blocos horizontais à esquerda (2 × 7) ────────────────────
+const LEFT_X = 200;
+const LEFT_Y = [380, 490, 600, 710];
+([[3, 'Finanças'], [4, 'Casa'], [5, 'Beleza'], [6, 'Turismo']] as [number, string][]).forEach(([n, nome], i) => {
+    sector(n, nome, 40, LEFT_Y[i] + 20, 150);
+    addBlock(n, LEFT_X, LEFT_Y[i], 2, 7);
+});
 
-// ============================================================
-//  ÁREA LOUNGE (área especial central)
-// ============================================================
-export const specialAreas: SpecialArea[] = [
+// ── Fileiras na frente do Centro de Eventos ──────────────────
+sector(7, 'Soluções Emp. Tecnológicas', 640, 462, 250);
+addBlock(7, 640, 505, 1, 7);
+sector(8, 'Soluções Empresariais', 920, 462, 230);
+addBlock(8, 935, 505, 1, 5);
+
+// ── Grade central superior (2 × 6) ───────────────────────────
+const GRID_X = [580, 700, 820, 940, 1060, 1180];
+const UP_Y = 705;
+([[9, 'Moda'], [10, 'Gestantes'], [11, 'Educação'], [12, 'Eventos'], [13, 'Esportes'], [14, 'Automotivo']] as [number, string][])
+    .forEach(([n, nome], i) => {
+        sector(n, nome, GRID_X[i] - 21, UP_Y - 40, 116);
+        addBlock(n, GRID_X[i], UP_Y, 6, 2);
+    });
+
+// ── Grade central inferior (2 × 6) ───────────────────────────
+const LOW_Y = 1000;
+([[15, 'Marketing'], [16, 'Pet'], [17, 'Agro'], [18, 'Construção'], [19, 'Saúde']] as [number, string][])
+    .forEach(([n, nome], i) => {
+        sector(n, nome, GRID_X[i] - 21, LOW_Y - 40, 116);
+        addBlock(n, GRID_X[i], LOW_Y, 6, 2);
+    });
+
+// 20 Saúde Fornecedor — 2 × 5
+sector(20, 'Saúde Fornecedor', GRID_X[5] - 21, LOW_Y - 40, 150);
+addBlock(20, GRID_X[5], LOW_Y, 5, 2);
+
+// 21 Baby e Kids — 1 × 7
+sector(21, 'Baby e Kids', 700, 1230, 200);
+addBlock(21, 700, 1272, 1, 7);
+
+const mainAreas: SpecialArea[] = [
     {
-        id: 'lounge',
-        label: 'LOUNGE',
-        subLabel: 'Área de Descanso',
-        x: 288,
-        y: 280,
-        width: 200,
-        height: 496,
-        color: '#c08470',
-        textColor: '#8b5a45',
-        fontSize: 22,
-        borderRadius: 14,
+        id: 'centro-eventos', label: 'Centro de Eventos', subLabel: 'Sociedade Rural',
+        x: 650, y: 200, width: 520, height: 230, color: '#64748b', textColor: '#cbd5e1', fontSize: 26, borderRadius: 10,
+    },
+    {
+        id: 'palco', label: 'PALCO',
+        x: 1190, y: 330, width: 90, height: 44, color: '#a21caf', textColor: '#f5d0fe', fontSize: 14, borderRadius: 6,
+    },
+    {
+        id: 'bar-centro', label: 'BAR',
+        x: 1190, y: 385, width: 90, height: 40, color: '#0e7490', textColor: '#a5f3fc', fontSize: 14, borderRadius: 6,
+    },
+    {
+        id: 'lounge-t3', label: 'LOUNGE T3',
+        x: 465, y: 650, width: 50, height: 120, color: '#c08470', textColor: '#f5d0c0', fontSize: 12, borderRadius: 6, rotation: -90,
+    },
+    {
+        id: 'banheiro', label: 'BANHEIRO QUÍMICO',
+        x: 220, y: 860, width: 200, height: 110, color: '#475569', textColor: '#e2e8f0', fontSize: 14, borderRadius: 6,
+    },
+    {
+        id: 'pm-mg', label: 'PM MG',
+        x: 150, y: 1160, width: 150, height: 56, color: '#1d4ed8', textColor: '#bfdbfe', fontSize: 18, borderRadius: 6,
+    },
+    {
+        id: 'bilheteria', label: 'BILHETERIA',
+        x: 320, y: 1295, width: 130, height: 44, color: '#475569', textColor: '#e2e8f0', fontSize: 13, borderRadius: 6,
+    },
+    {
+        id: 'emergencia', label: 'EMERGÊNCIA',
+        x: 460, y: 1295, width: 130, height: 44, color: '#b91c1c', textColor: '#fecaca', fontSize: 13, borderRadius: 6,
+    },
+    {
+        id: 'espaco-kids', label: 'ESPAÇO KIDS',
+        x: 605, y: 1280, width: 80, height: 70, color: '#7c3aed', textColor: '#ddd6fe', fontSize: 10, borderRadius: 35,
+    },
+    {
+        id: 'v02', label: 'V02',
+        x: 1060, y: 1295, width: 70, height: 44, color: '#475569', textColor: '#e2e8f0', fontSize: 15, borderRadius: 6,
+    },
+    // saídas de emergência laterais (lado esquerdo e junto ao banheiro)
+    ...[440, 640, 900].map((y, i): SpecialArea => ({
+        id: `emerg-esq-${i}`, label: 'EMERGÊNCIA',
+        x: 2, y, width: 30, height: 90, color: '#b91c1c', textColor: '#fecaca', fontSize: 9, borderRadius: 4, rotation: -90,
+    })),
+    {
+        id: 'emerg-banheiro', label: 'EMERGÊNCIA',
+        x: 432, y: 860, width: 28, height: 90, color: '#b91c1c', textColor: '#fecaca', fontSize: 9, borderRadius: 4, rotation: -90,
+    },
+    {
+        id: 'emerg-industrial', label: 'EMERGÊNCIA',
+        x: 520, y: 440, width: 28, height: 90, color: '#b91c1c', textColor: '#fecaca', fontSize: 9, borderRadius: 4, rotation: -90,
+    },
+    // veículos (faixa direita, junto à Rua Carlos Paulinho Cardoso)
+    ...['veículo 01', 'veículo 02', 'veículo 03', 'veículo 04', 'trator agro', 'trator amarelo', 'moto', 'moto elétrica']
+        .map((label, i): SpecialArea => ({
+            id: `veiculo-${i}`, label,
+            x: 1345, y: 470 + i * 58, width: 110, height: 48,
+            color: i < 4 ? '#475569' : '#65a30d', textColor: '#e2e8f0', fontSize: 12, borderRadius: 6,
+        })),
+];
+
+const mainLines: string[] = [
+    // contorno externo
+    'M 40 100 L 1180 100 L 1180 430 L 1470 430 L 1470 1150 L 1250 1355 L 320 1355 L 140 1230 L 20 1230 L 20 330',
+    // divisória esquerda (área dos blocos 3–6)
+    'M 190 340 L 460 340 L 460 820 L 190 820 Z',
+    // via de serviço superior
+    'M 40 330 L 440 330',
+];
+
+// aplica o deslocamento vertical no miolo
+standPositions.forEach(p => { p.y += OY; });
+sectors.forEach(s => { s.labelY += OY; });
+mainAreas.forEach(a => { a.y += OY; });
+
+// ════════════════════════════════════════════════════════════
+//  FAIXA SUPERIOR — Alimentação / Bar (stands 248–259)
+// ════════════════════════════════════════════════════════════
+const TENT_Y = 185;
+sector(101, 'Alimentação', 690, TENT_Y - 42, 180, true);
+addBlock(101, 690, TENT_Y, 1, 6, 'outro');
+sector(102, 'Bar', 940, TENT_Y - 42, 120, true);
+addBlock(102, 940, TENT_Y, 1, 6, 'outro');
+
+export const TOTAL_STANDS = standPositions.length; // 259
+
+const topAreas: SpecialArea[] = [
+    // 4 tendas do Feirão
+    ...[0, 1, 2, 3].map((i): SpecialArea => ({
+        id: `feirao-${i}`, label: 'TENDA FEIRÃO', subLabel: '10×10m · 100 m²',
+        x: 40 + i * 120, y: 20, width: 110, height: 90, color: '#b45309', textColor: '#fde68a', fontSize: 11, borderRadius: 6,
+    })),
+    {
+        id: 'credenciamento', label: 'CREDENCIAMENTO', subLabel: 'Tenda 10×10m',
+        x: 470, y: 160, width: 140, height: 120, color: '#0f766e', textColor: '#99f6e4', fontSize: 12, borderRadius: 6,
+    },
+    {
+        id: 'emerg-credenciamento', label: 'EMERGÊNCIA',
+        x: 520, y: 290, width: 90, height: 26, color: '#b91c1c', textColor: '#fecaca', fontSize: 9, borderRadius: 4,
+    },
+    // fundo das tendas de Alimentação/Bar (label vazio = só o contorno)
+    {
+        id: 'tendas-alim-bar', label: '',
+        x: 675, y: 130, width: 485, height: 112, color: '#ca8a04', borderRadius: 8,
+    },
+    {
+        id: 'wc', label: 'W.C',
+        x: 700, y: 268, width: 200, height: 60, color: '#475569', textColor: '#e2e8f0', fontSize: 16, borderRadius: 6,
+    },
+    {
+        id: 'currais', label: 'Conjunto de Currais', subLabel: 'Antônio Figueiredo Viana',
+        x: 1185, y: 20, width: 295, height: 200, color: '#57534e', textColor: '#e7e5e4', fontSize: 16, borderRadius: 8,
+    },
+    {
+        id: 'tatersal', label: 'TATERSAL',
+        x: 1230, y: 235, width: 250, height: 110, color: '#57534e', textColor: '#e7e5e4', fontSize: 16, borderRadius: 8,
+    },
+    // saídas de emergência na Rua Carlos Paulinho Cardoso
+    ...[620, 1100].map((y, i): SpecialArea => ({
+        id: `emerg-rua-${i}`, label: 'EMERGÊNCIA',
+        x: 1478, y, width: 30, height: 90, color: '#b91c1c', textColor: '#fecaca', fontSize: 9, borderRadius: 4, rotation: -90,
+    })),
+    // ruas
+    {
+        id: 'rua-carlos', label: 'RUA CARLOS PAULINHO CARDOSO',
+        x: 1520, y: 0, width: 70, height: 1720, color: '#334155', textColor: '#94a3b8', fontSize: 16, borderRadius: 0, rotation: -90,
+    },
+    {
+        id: 'av-geraldo', label: 'AV. GERALDO ATHAYDE',
+        x: 0, y: 1725, width: 1590, height: 70, color: '#334155', textColor: '#94a3b8', fontSize: 18, borderRadius: 0,
+    },
+    // entrada pela avenida
+    {
+        id: 'caixa-dagua', label: "CAIXA D'ÁGUA",
+        x: 20, y: 1590, width: 110, height: 44, color: '#0369a1', textColor: '#bae6fd', fontSize: 11, borderRadius: 6,
+    },
+    {
+        id: 'bilheteria-2', label: 'BILHETERIA',
+        x: 20, y: 1686, width: 110, height: 34, color: '#475569', textColor: '#e2e8f0', fontSize: 11, borderRadius: 6,
+    },
+    {
+        id: 'portaria', label: 'PORTARIA',
+        x: 150, y: 1686, width: 160, height: 34, color: '#475569', textColor: '#e2e8f0', fontSize: 13, borderRadius: 6,
     },
 ];
 
 // ============================================================
-//  CORREDORES (fundo visual entre colunas)
+//  EXPORTS
 // ============================================================
-export const corridors: Corridor[] = [
-    // Entre col1 e col2
-    { x: 32 + 52, y: 180, width: 114 - (32 + 52), height: 696 },
-    // Entre col2 e col3
-    { x: 114 + 52, y: 180, width: 196 - (114 + 52), height: 696 },
-    // Entre col4 e col5
-    { x: 528 + 52, y: 180, width: 610 - (528 + 52), height: 696 },
-    // Entre col5 e col6
-    { x: 610 + 52, y: 180, width: 692 - (610 + 52), height: 696 },
-];
+// topAreas primeiro (ruas ficam por baixo de tudo)
+export const specialAreas: SpecialArea[] = [...topAreas, ...mainAreas];
 
-// ============================================================
-//  ANOTAÇÕES
-// ============================================================
+export const venueLines: string[] = mainLines.map(d => shiftPath(d, OY));
+
+export const corridors: Corridor[] = [];
+
 export const annotations: MapAnnotation[] = [
-    {
-        type: 'entrance',
-        label: '↩ ENTRADA',
-        x: 32 + 26,      // centro da col1
-        y: 160,
-        fontSize: 10,
-        color: '#22c55e',
-    },
+    { type: 'entrance', label: '↓ ENTRADA', x: 540, y: 148, fontSize: 13, color: '#22c55e' },
+    { type: 'text', label: 'Jardim', x: 240, y: 560, fontSize: 16, color: '#4ade80' },
+    { type: 'text', label: 'Jardim', x: 627, y: 560, fontSize: 12, color: '#4ade80', rotation: -90 },
+    { type: 'text', label: 'ALIMENTAÇÃO · BAR — tendas 10×10m', x: 917, y: 254, fontSize: 10, color: '#facc15' },
 ];
 
 // ============================================================
-//  GERADOR DE MOCK — todos disponíveis, tipos já definidos
+//  GERADOR DE MOCK — todos disponíveis
 // ============================================================
 export function generateMockStands(): Stand[] {
     return standPositions.map((pos) => ({
@@ -195,4 +337,9 @@ export function generateMockStands(): Stand[] {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
     }));
+}
+
+export function sectorOf(numero: number): Sector | undefined {
+    const pos = standPositions.find(p => p.numero === numero);
+    return pos ? sectors.find(s => s.numero === pos.setor) : undefined;
 }

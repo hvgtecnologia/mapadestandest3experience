@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { Stand } from '@/types/stand';
-import { standPositions, specialAreas, corridors, annotations, SVG_W, SVG_H } from '@/data/mapLayout';
+import { standPositions, specialAreas, corridors, annotations, sectors, venueLines, sectorOf, SVG_W, SVG_H } from '@/data/mapLayout';
 import { standTypeLabels } from '@/utils/standColors';
 import StandItem from './StandItem';
 
@@ -421,6 +421,11 @@ export default function StandMap({ stands, onStandClick, selectedStandId }: Stan
                         />
                     ))}
 
+                    {/* ─── CONTORNO DO TERRENO ─── */}
+                    {venueLines.map((d, i) => (
+                        <path key={`venue-${i}`} d={d} fill="none" stroke="#475569" strokeWidth={3} strokeLinejoin="round" opacity={0.8} />
+                    ))}
+
                     {/* ─── ÁREAS ESPECIAIS ─── */}
                     {specialAreas.map((area) => (
                         <g key={area.id}>
@@ -483,6 +488,7 @@ export default function StandMap({ stands, onStandClick, selectedStandId }: Stan
                                     fontFamily={area.id === 'lounge' ? 'Georgia, serif' : 'inherit'}
                                     letterSpacing={area.id === 'lounge' ? '0.2em' : '0'}
                                     opacity={0.9}
+                                    transform={area.rotation ? `rotate(${area.rotation}, ${area.x + area.width / 2}, ${area.y + area.height / 2})` : undefined}
                                     className="select-none pointer-events-none"
                                 >
                                     {area.label}
@@ -526,6 +532,60 @@ export default function StandMap({ stands, onStandClick, selectedStandId }: Stan
                         </text>
                     ))}
 
+                    {/* ─── ETIQUETAS DOS SETORES ─── */}
+                    {sectors.map((s) => {
+                        const h = 34;
+                        const badgeR = 17;
+                        const badgeW = s.hideBadge ? 0 : badgeR * 2;
+                        const fs = Math.min(15, Math.floor((s.labelW - badgeW - 8) / (s.nome.length * 0.58)));
+                        return (
+                            <g key={`sector-${s.numero}`} className="select-none pointer-events-none">
+                                <rect
+                                    x={s.labelX} y={s.labelY}
+                                    width={s.labelW} height={h}
+                                    rx={h / 2}
+                                    fill="#f8fafc"
+                                    stroke="#f59e0b"
+                                    strokeWidth={2}
+                                />
+                                <text
+                                    x={s.labelX + (s.labelW - badgeW) / 2 + (s.hideBadge ? 0 : 4)}
+                                    y={s.labelY + h / 2}
+                                    textAnchor="middle"
+                                    dominantBaseline="central"
+                                    fill="#1e3a8a"
+                                    fontSize={fs}
+                                    fontWeight="800"
+                                    fontFamily="'Inter', 'Arial', sans-serif"
+                                >
+                                    {s.nome}
+                                </text>
+                                {!s.hideBadge && (<>
+                                <circle
+                                    cx={s.labelX + s.labelW - badgeR + 2}
+                                    cy={s.labelY + h / 2}
+                                    r={badgeR}
+                                    fill="#f97316"
+                                    stroke="#f8fafc"
+                                    strokeWidth={2}
+                                />
+                                <text
+                                    x={s.labelX + s.labelW - badgeR + 2}
+                                    y={s.labelY + h / 2 + 1}
+                                    textAnchor="middle"
+                                    dominantBaseline="central"
+                                    fill="#ffffff"
+                                    fontSize={16}
+                                    fontWeight="900"
+                                    fontFamily="'Inter', 'Arial', sans-serif"
+                                >
+                                    {s.numero}
+                                </text>
+                                </>)}
+                            </g>
+                        );
+                    })}
+
                     {/* ─── STANDS ─── */}
                     {standPositions.map((pos) => {
                         const stand = getStandByNumero(pos.numero);
@@ -565,6 +625,11 @@ export default function StandMap({ stands, onStandClick, selectedStandId }: Stan
                     <p className="text-amber-400 font-bold text-sm">
                         Stand {String(tooltip.stand.numero).padStart(2, '0')}
                     </p>
+                    {sectorOf(tooltip.stand.numero) && (
+                        <p className="text-orange-300 text-xs font-semibold">
+                            {sectorOf(tooltip.stand.numero)!.hideBadge ? '' : `Setor ${sectorOf(tooltip.stand.numero)!.numero} · `}{sectorOf(tooltip.stand.numero)!.nome}
+                        </p>
+                    )}
                     <p className="text-xs font-medium mt-0.5" style={{ color: tipoColors[tooltip.stand.tipo] || '#94a3b8' }}>
                         {standTypeLabels[tooltip.stand.tipo] || tooltip.stand.tipo}
                     </p>

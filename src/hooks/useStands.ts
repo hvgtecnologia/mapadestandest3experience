@@ -5,7 +5,7 @@ import { supabase } from '@/services/supabaseClient';
 import { Stand, StandStatus } from '@/types/stand';
 import { generateMockStands, standPositions } from '@/data/mapLayout';
 
-const USE_MOCK = false;
+const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK === 'true';
 
 export function useStands() {
     const [stands, setStands] = useState<Stand[]>([]);
@@ -15,12 +15,12 @@ export function useStands() {
     const getStands = useCallback(async () => {
         if (USE_MOCK) {
             // Use mock data if Supabase is not configured
-            const stored = localStorage.getItem('mock-stands-v2');
-            if (stored) {
+            const stored = localStorage.getItem('mock-stands-2027');
+            if (stored && JSON.parse(stored).length === standPositions.length) {
                 setStands(JSON.parse(stored));
             } else {
                 const mock = generateMockStands();
-                localStorage.setItem('mock-stands-v2', JSON.stringify(mock));
+                localStorage.setItem('mock-stands-2027', JSON.stringify(mock));
                 setStands(mock);
             }
             setLoading(false);
@@ -49,7 +49,7 @@ export function useStands() {
                 const updated = prev.map(s =>
                     s.id === id ? { ...s, ...updates, updated_at: new Date().toISOString() } : s
                 );
-                localStorage.setItem('mock-stands-v2', JSON.stringify(updated));
+                localStorage.setItem('mock-stands-2027', JSON.stringify(updated));
                 return updated;
             });
             return { success: true };

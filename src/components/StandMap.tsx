@@ -3,7 +3,7 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { Stand } from '@/types/stand';
 import { standPositions, specialAreas, corridors, annotations, sectors, venueLines, sectorOf, SVG_W, SVG_H } from '@/data/mapLayout';
-import { standTypeLabels } from '@/utils/standColors';
+import { standTypeLabels, standTypeColors, standStatusColors } from '@/utils/standColors';
 import StandItem from './StandItem';
 
 interface StandMapProps {
@@ -306,6 +306,20 @@ export default function StandMap({ stands, onStandClick, selectedStandId }: Stan
                 </div>
 
 
+
+                {/* Legenda de status */}
+                <div className="flex items-center gap-3 text-xs text-gray-300">
+                    {[
+                        { label: 'Disponível', color: standTypeColors.prata },
+                        { label: 'Reservado', color: standStatusColors.reservado },
+                        { label: 'Vendido', color: standStatusColors.vendido },
+                    ].map(item => (
+                        <span key={item.label} className="flex items-center gap-1.5">
+                            <span className="inline-block w-3.5 h-3.5 rounded-sm" style={{ background: item.color }} />
+                            {item.label}
+                        </span>
+                    ))}
+                </div>
 
                 {/* Zoom controls */}
                 <div className="flex items-center gap-1">

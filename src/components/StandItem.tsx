@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Stand } from '@/types/stand';
-import { standTypeColors, standTypeBorderColors, standStatusColors, standTypeLabels, standStatusLabels } from '@/utils/standColors';
+import { standTypeColors, standTypeBorderColors, standStatusColors, standStatusBorderColors, standTypeLabels, standStatusLabels } from '@/utils/standColors';
 import { StandPosition } from '@/data/mapLayout';
 
 interface StandItemProps {
@@ -20,18 +20,19 @@ export default function StandItem({ position, stand, onClick, isSelected, isHigh
     const tipo = stand?.tipo || position.tipo || 'prata';
     const empresa = stand?.empresa;
 
-    const fillColor = standTypeColors[tipo] || '#2e8585';
-    const borderColor = standTypeBorderColors[tipo] || '#0d2340';
-    const statusColor = standStatusColors[status];
+    // Reservado/vendido pintam o stand inteiro; disponível usa a cor do tipo
+    const isTaken = status !== 'disponivel';
+    const fillColor = isTaken ? standStatusColors[status] : (standTypeColors[tipo] || '#2e8585');
+    const borderColor = isTaken ? standStatusBorderColors[status] : (standTypeBorderColors[tipo] || '#0d2340');
 
-    // Tamanhos baseados na célula 44×44 do novo mapa
+    // Tamanhos baseados na célula do mapa
     const numFontSize = Math.max(11, Math.round(position.height * 0.27));
     const subFontSize = 9;
-    const dotR = 2.5;
 
-    // Texto escuro em fundos claros (prata=prateado, outro=amarelo, ouro=dourado)
-    const textColor    = (tipo === 'prata' || tipo === 'outro' || tipo === 'ouro') ? '#1a2540' : '#ffffff';
-    const subTextColor = (tipo === 'prata' || tipo === 'outro' || tipo === 'ouro') ? '#374151' : '#e2e8f0';
+    // Texto escuro em fundos claros; branco em fundos escuros
+    const lightBg = isTaken ? status === 'reservado' : (tipo === 'prata' || tipo === 'outro' || tipo === 'ouro');
+    const textColor    = lightBg ? '#1a2540' : '#ffffff';
+    const subTextColor = lightBg ? '#374151' : '#fee2e2';
 
     const cx = position.x + position.width / 2;
     const cy = position.y + position.height / 2;
@@ -100,17 +101,6 @@ export default function StandItem({ position, stand, onClick, isSelected, isHigh
                     {empresa.length > 10 ? empresa.substring(0, 9) + '…' : empresa}
                 </text>
             )}
-
-            {/* Ponto de status no canto superior direito */}
-            <circle
-                cx={position.x + position.width - dotR - 4}
-                cy={position.y + dotR + 4}
-                r={dotR}
-                fill={statusColor}
-                stroke={borderColor}
-                strokeWidth={2}
-                opacity={0.95}
-            />
 
             {/* Hover overlay */}
             <rect

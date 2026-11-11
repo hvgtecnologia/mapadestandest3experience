@@ -10,7 +10,7 @@ import { StandStatus, StandType } from '@/types/stand';
 // ═══════════════════════════════════════════
 export const standTypeColors: Record<StandType, string> = {
     prata:  '#94a3b8',   // prata/prateado
-    outro:  '#e8c127',   // amarelo (OUTRO)
+    outro:  '#5eead4',   // verde-água (Alimentação/Bar)
     bronze: '#cd7f32',   // bronze
     ouro:   '#f9bf1b',   // dourado
     master: '#d14d8f',   // magenta
@@ -21,7 +21,7 @@ export const standTypeColors: Record<StandType, string> = {
 
 export const standTypeBorderColors: Record<StandType, string> = {
     prata:  '#64748b',
-    outro:  '#ceaa1a',
+    outro:  '#14b8a6',
     bronze: '#a0621e',
     ouro:   '#d4960e',
     master: '#a83c70',
@@ -35,8 +35,14 @@ export const standTypeBorderColors: Record<StandType, string> = {
 // ═══════════════════════════════════════════
 export const standStatusColors: Record<StandStatus, string> = {
     disponivel: '#22c55e',
-    reservado:  '#eab308',
-    vendido:    '#ef4444',
+    reservado:  '#f59e0b',   // laranja
+    vendido:    '#dc2626',   // vermelho
+};
+
+export const standStatusBorderColors: Record<StandStatus, string> = {
+    disponivel: '#15803d',
+    reservado:  '#b45309',
+    vendido:    '#991b1b',
 };
 
 export const standStatusLabels: Record<StandStatus, string> = {

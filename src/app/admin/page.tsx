@@ -3,9 +3,10 @@
 import React, { useState, useMemo } from 'react';
 import { useStands } from '@/hooks/useStands';
 import StandModal from '@/components/StandModal';
+import StandMap from '@/components/StandMap';
 import DashboardStats from '@/components/DashboardStats';
 import { Stand, StandStatus, StandType } from '@/types/stand';
-import { standStatusColors, standStatusLabels, standTypeLabels } from '@/utils/standColors';
+import { standStatusAccent, standStatusLabels, standTypeLabels } from '@/utils/standColors';
 import Link from 'next/link';
 import * as XLSX from 'xlsx';
 
@@ -62,6 +63,14 @@ export default function AdminPage() {
         setIsModalOpen(true);
     };
 
+    // Etapas: disponível → reservado → vendido (pago)
+    const confirmPayment = (stand: Stand) => updateStand(stand.id, { status: 'vendido' });
+    const releaseStand = (stand: Stand) => {
+        if (confirm(`Liberar o stand ${stand.numero}? A empresa "${stand.empresa ?? ''}" será removida.`)) {
+            updateStand(stand.id, { status: 'disponivel', empresa: null });
+        }
+    };
+
     const handleCloseModal = () => {
         setIsModalOpen(false);
         setSelectedStand(null);
@@ -87,45 +96,44 @@ export default function AdminPage() {
         XLSX.writeFile(wb, `stands_${new Date().toISOString().split('T')[0]}.xlsx`);
     };
 
+    const btn = 'px-4 py-2.5 rounded-xl bg-white/[.07] border border-[#C8CEDA]/35 text-white text-sm font-semibold hover:bg-white/[.14] transition-colors';
+    const field = 'bg-white/[.07] border border-[#C8CEDA]/35 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus-visible:ring-2 focus-visible:ring-[#D9B26A] placeholder:text-[#8DA0C4]';
+
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-950">
-                <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            <div className="min-h-screen flex items-center justify-center">
+                <div className="w-16 h-16 border-4 border-[#D9B26A] border-t-transparent rounded-full animate-spin" />
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-gray-950">
+        <div className="min-h-screen">
             {/* Header */}
-            <header className="sticky top-0 z-30 bg-gray-950/80 backdrop-blur-xl border-b border-gray-800/50">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <Link
-                            href="/"
-                            className="text-gray-400 hover:text-white transition-colors text-sm"
-                        >
-                            ← Voltar ao Mapa
-                        </Link>
-                        <div>
-                            <h1 className="text-xl sm:text-2xl font-bold text-white">
-                                ⚙️ Painel Administrativo
-                            </h1>
-                            <p className="text-sm text-gray-400">Gerencie todos os stands do evento</p>
+            <header className="border-b border-[#D9B26A]/40 bg-[linear-gradient(100deg,#091B3B_22%,rgba(15,40,80,.93)_55%,rgba(9,27,59,.6))]">
+                <div className="max-w-[1490px] mx-auto px-4 sm:px-6 py-5 flex flex-col lg:flex-row lg:items-center gap-5 lg:gap-8">
+                    <img src="/logo-t3-2027.png" alt="T3 Experience 2027" className="w-[200px] h-auto shrink-0" />
+                    <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2.5 text-xs font-bold tracking-[.32em] uppercase">
+                            <span className="w-[7px] h-[7px] rounded-full bg-[#D9B26A]" />
+                            Área da equipe
+                        </div>
+                        <h1 className="font-display text-[clamp(36px,4vw,60px)] leading-[.92] mt-2">
+                            Reservas e <em className="not-italic text-[#C8CEDA]">pagamentos.</em>
+                        </h1>
+                        <div className="flex flex-wrap gap-2.5 mt-3">
+                            <Link href="/" className={btn}>← Mapa público</Link>
+                            <button onClick={exportXLSX} className={btn}>Exportar planilha</button>
                         </div>
                     </div>
-                    <button
-                        onClick={exportXLSX}
-                        className="px-4 py-2 rounded-xl bg-green-600 hover:bg-green-500 text-white transition-all text-sm font-medium shadow-lg shadow-green-500/25"
-                    >
-                        📥 Exportar XLSX
-                    </button>
+                    <div className="lg:w-[400px]">
+                        <DashboardStats stats={stats} />
+                    </div>
                 </div>
             </header>
 
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-                {/* Stats */}
-                <DashboardStats stats={stats} />
+            <div className="max-w-[1490px] mx-auto px-3 sm:px-5 py-5 space-y-5">
+                <StandMap stands={stands} onStandClick={handleStandClick} selectedStandId={selectedStand?.id} />
 
                 {/* Filters */}
                 <div className="flex flex-wrap gap-3">
@@ -133,10 +141,10 @@ export default function AdminPage() {
                     <div className="flex-1 min-w-[200px]">
                         <input
                             type="text"
-                            placeholder="🔍 Buscar por empresa ou número..."
+                            placeholder="Buscar por empresa ou número"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-2.5 text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none text-sm"
+                            className={`w-full ${field}`}
                         />
                     </div>
 
@@ -144,67 +152,67 @@ export default function AdminPage() {
                     <select
                         value={filterStatus}
                         onChange={(e) => setFilterStatus(e.target.value as StandStatus | 'todos')}
-                        className="bg-gray-900 border border-gray-700 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                        className={field}
                     >
-                        <option value="todos">Todos os status</option>
-                        <option value="disponivel">🟢 Disponível</option>
-                        <option value="reservado">🟡 Reservado</option>
-                        <option value="vendido">🔴 Vendido</option>
+                        <option className="text-[#0F2850]" value="todos">Todos os status</option>
+                        <option className="text-[#0F2850]" value="disponivel">Disponível</option>
+                        <option className="text-[#0F2850]" value="reservado">Reservado</option>
+                        <option className="text-[#0F2850]" value="vendido">Vendido (pago)</option>
                     </select>
 
                     {/* Tipo filter */}
                     <select
                         value={filterTipo}
                         onChange={(e) => setFilterTipo(e.target.value as StandType | 'todos')}
-                        className="bg-gray-900 border border-gray-700 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                        className={field}
                     >
-                        <option value="todos">Todos os tipos</option>
-                        <option value="ouro">🥇 Ouro</option>
-                        <option value="prata">🔴 Prata</option>
-                        <option value="outro">🟡 Outro</option>
-                        <option value="bronze">🟤 Bronze</option>
-                        <option value="master">⭐ Master</option>
+                        <option className="text-[#0F2850]" value="todos">Todos os tipos</option>
+                        <option className="text-[#0F2850]" value="ouro">Ouro</option>
+                        <option className="text-[#0F2850]" value="prata">Prata</option>
+                        <option className="text-[#0F2850]" value="outro">Outro</option>
+                        <option className="text-[#0F2850]" value="bronze">Bronze</option>
+                        <option className="text-[#0F2850]" value="master">Master</option>
                     </select>
                 </div>
 
                 {/* Results count */}
-                <p className="text-sm text-gray-400">
+                <p className="text-sm text-[#9FB0CF]">
                     Mostrando <span className="text-white font-bold">{filteredStands.length}</span> de {stands.length} stands
                 </p>
 
                 {/* Table */}
-                <div className="bg-gray-900/50 rounded-2xl border border-gray-700/50 overflow-hidden shadow-xl">
+                <div className="rounded-[26px] border border-[#C8CEDA]/25 bg-[#091B3B]/70 overflow-hidden">
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm">
                             <thead>
-                                <tr className="border-b border-gray-700/50">
+                                <tr className="border-b border-[#C8CEDA]/25">
                                     <th
-                                        className="px-5 py-4 text-left text-gray-400 font-medium cursor-pointer hover:text-white transition-colors"
+                                        className="px-5 py-4 text-left text-[#C8CEDA] font-semibold text-xs tracking-[.14em] uppercase cursor-pointer hover:text-white transition-colors"
                                         onClick={() => handleSort('numero')}
                                     >
                                         # {sortField === 'numero' && (sortAsc ? '↑' : '↓')}
                                     </th>
                                     <th
-                                        className="px-5 py-4 text-left text-gray-400 font-medium cursor-pointer hover:text-white transition-colors"
+                                        className="px-5 py-4 text-left text-[#C8CEDA] font-semibold text-xs tracking-[.14em] uppercase cursor-pointer hover:text-white transition-colors"
                                         onClick={() => handleSort('status')}
                                     >
                                         Status {sortField === 'status' && (sortAsc ? '↑' : '↓')}
                                     </th>
                                     <th
-                                        className="px-5 py-4 text-left text-gray-400 font-medium cursor-pointer hover:text-white transition-colors"
+                                        className="px-5 py-4 text-left text-[#C8CEDA] font-semibold text-xs tracking-[.14em] uppercase cursor-pointer hover:text-white transition-colors"
                                         onClick={() => handleSort('empresa')}
                                     >
                                         Empresa {sortField === 'empresa' && (sortAsc ? '↑' : '↓')}
                                     </th>
-                                    <th className="px-5 py-4 text-left text-gray-400 font-medium">Tipo</th>
-                                    <th className="px-5 py-4 text-right text-gray-400 font-medium">Ações</th>
+                                    <th className="px-5 py-4 text-left text-[#C8CEDA] font-semibold text-xs tracking-[.14em] uppercase">Tipo</th>
+                                    <th className="px-5 py-4 text-right text-[#C8CEDA] font-semibold text-xs tracking-[.14em] uppercase">Ações</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {filteredStands.map((stand) => (
                                     <tr
                                         key={stand.id}
-                                        className="border-b border-gray-800/50 hover:bg-gray-800/30 transition-colors"
+                                        className="border-b border-[#C8CEDA]/10 hover:bg-white/[.04] transition-colors"
                                     >
                                         <td className="px-5 py-3">
                                             <span className="font-bold text-white">
@@ -213,29 +221,34 @@ export default function AdminPage() {
                                         </td>
                                         <td className="px-5 py-3">
                                             <span
-                                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium text-white"
-                                                style={{ backgroundColor: standStatusColors[stand.status] + '33', border: `1px solid ${standStatusColors[stand.status]}55` }}
+                                                className="inline-block px-2.5 py-1 rounded-full text-[11px] font-bold tracking-[.1em] uppercase"
+                                                style={{ color: standStatusAccent[stand.status], background: `${standStatusAccent[stand.status]}26` }}
                                             >
-                                                <span
-                                                    className="w-2 h-2 rounded-full"
-                                                    style={{ backgroundColor: standStatusColors[stand.status] }}
-                                                />
-                                                {standStatusLabels[stand.status]}
+                                                ● {standStatusLabels[stand.status]}
                                             </span>
                                         </td>
-                                        <td className="px-5 py-3 text-gray-300">
-                                            {stand.empresa || <span className="text-gray-600 italic">—</span>}
+                                        <td className="px-5 py-3 text-white">
+                                            {stand.empresa || <span className="text-[#7F93B8]">—</span>}
                                         </td>
-                                        <td className="px-5 py-3 text-gray-400 capitalize">
+                                        <td className="px-5 py-3 text-[#9FB0CF]">
                                             {standTypeLabels[stand.tipo]}
                                         </td>
                                         <td className="px-5 py-3 text-right">
-                                            <button
-                                                onClick={() => handleStandClick(stand)}
-                                                className="px-3 py-1.5 rounded-lg bg-blue-600/20 text-blue-400 hover:bg-blue-600/40 hover:text-blue-300 transition-all text-xs font-medium border border-blue-600/30"
-                                            >
-                                                ✏️ Editar
-                                            </button>
+                                            <div className="flex justify-end gap-2 whitespace-nowrap">
+                                                {stand.status === 'reservado' && (
+                                                    <button onClick={() => confirmPayment(stand)} className="px-3 py-1.5 rounded-lg text-xs font-bold bg-[#167348] hover:bg-[#1b8a57] text-white transition-colors">
+                                                        Confirmar pagamento
+                                                    </button>
+                                                )}
+                                                {stand.status !== 'disponivel' && (
+                                                    <button onClick={() => releaseStand(stand)} className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-[#FFB4BF]/40 text-[#FFB4BF] hover:bg-[#FFB4BF]/10 transition-colors">
+                                                        Liberar
+                                                    </button>
+                                                )}
+                                                <button onClick={() => handleStandClick(stand)} className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-[#C8CEDA]/35 text-white hover:bg-white/10 transition-colors">
+                                                    Editar
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}

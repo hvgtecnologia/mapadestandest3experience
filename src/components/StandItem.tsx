@@ -2,7 +2,10 @@
 
 import React from 'react';
 import { Stand } from '@/types/stand';
-import { standTypeColors, standTypeBorderColors, standStatusColors, standStatusBorderColors, standTypeLabels, standStatusLabels } from '@/utils/standColors';
+import {
+    standTypeColors, standTypeBorderColors, standStatusColors, standStatusBorderColors,
+    standTypeLabels, standStatusLabels, standSelectedColor,
+} from '@/utils/standColors';
 import { StandPosition } from '@/data/mapLayout';
 
 interface StandItemProps {
@@ -11,141 +14,100 @@ interface StandItemProps {
     onClick: (stand: Stand) => void;
     isSelected?: boolean;
     isHighlighted?: boolean;
+    isDimmed?: boolean;
 }
 
-export default function StandItem({ position, stand, onClick, isSelected, isHighlighted }: StandItemProps) {
+export default function StandItem({ position, stand, onClick, isSelected, isHighlighted, isDimmed }: StandItemProps) {
     const status = stand?.status || 'disponivel';
-    // stand.tipo (DB) tem prioridade — permite admin mudar cor alterando o tipo
-    // position.tipo (mapLayout) é só o default inicial quando não há dado no banco
+    // stand.tipo (DB) tem prioridade — position.tipo é só o default do layout
     const tipo = stand?.tipo || position.tipo || 'prata';
     const empresa = stand?.empresa;
 
     // Reservado/vendido pintam o stand inteiro; disponível usa a cor do tipo
     const isTaken = status !== 'disponivel';
-    const fillColor = isTaken ? standStatusColors[status] : (standTypeColors[tipo] || '#2e8585');
-    const borderColor = isTaken ? standStatusBorderColors[status] : (standTypeBorderColors[tipo] || '#0d2340');
+    let fillColor = isTaken ? standStatusColors[status] : (standTypeColors[tipo] || standStatusColors.disponivel);
+    let borderColor = isTaken ? standStatusBorderColors[status] : (standTypeBorderColors[tipo] || standStatusBorderColors.disponivel);
+    if (isSelected) { fillColor = standSelectedColor; borderColor = '#0F2850'; }
 
-    // Tamanhos baseados na célula do mapa
-    const numFontSize = Math.max(11, Math.round(position.height * 0.27));
-    const subFontSize = 9;
+    const darkFill = isTaken && !isSelected;
+    const textColor = darkFill ? '#ffffff' : '#0F2850';
+    const subTextColor = darkFill ? '#E2E8F0' : '#16376A';
 
-    // Texto escuro em fundos claros; branco em fundos escuros
-    const lightBg = isTaken ? status === 'reservado' : (tipo === 'prata' || tipo === 'outro' || tipo === 'ouro');
-    const textColor    = lightBg ? '#1a2540' : '#ffffff';
-    const subTextColor = lightBg ? '#374151' : '#fee2e2';
-
+    const numFontSize = Math.max(11, Math.round(position.height * 0.34));
     const cx = position.x + position.width / 2;
     const cy = position.y + position.height / 2;
 
+    const activate = () => stand && !isDimmed && onClick(stand);
+
     return (
         <g
-            className="cursor-pointer"
-            onClick={() => stand && onClick(stand)}
+            className={isDimmed ? 'pointer-events-none' : 'cursor-pointer group'}
+            onClick={activate}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(); } }}
             role="button"
-            tabIndex={0}
+            tabIndex={isDimmed ? -1 : 0}
+            aria-pressed={!!isSelected}
             aria-label={`Stand ${position.numero} - ${standTypeLabels[tipo]} - ${standStatusLabels[status]}${empresa ? ` - ${empresa}` : ''}`}
+            opacity={isDimmed ? 0.22 : 1}
+            style={{ transition: 'opacity .2s', outline: 'none' }}
         >
-            {/* Borda tipo */}
-            <rect
-                x={position.x - 3}
-                y={position.y - 3}
-                width={position.width + 6}
-                height={position.height + 6}
-                rx={6}
-                fill="none"
-                stroke={borderColor}
-                strokeWidth={isSelected ? 6 : 3}
-                opacity={isSelected ? 1 : 0.6}
-            />
-
-            {/* Preenchimento da cell */}
             <rect
                 id={`stand-${String(position.numero).padStart(3, '0')}`}
                 x={position.x}
                 y={position.y}
                 width={position.width}
                 height={position.height}
-                rx={4}
+                rx={5}
                 fill={fillColor}
-                opacity={0.95}
-                className="hover:opacity-100 transition-opacity duration-150"
+                stroke={borderColor}
+                strokeWidth={isSelected ? 3 : 1.4}
+                className="transition-[stroke-width] duration-150 group-hover:[stroke-width:3] group-focus-visible:[stroke-width:3.5]"
             />
 
-            {/* Número do stand — grande e legível */}
             <text
                 x={cx}
-                y={cy - numFontSize * 0.15}
+                y={empresa ? cy - numFontSize * 0.25 : cy + 0.5}
                 textAnchor="middle"
                 dominantBaseline="central"
                 fill={textColor}
                 fontSize={numFontSize}
-                fontWeight="900"
-                fontFamily="'Inter', 'Arial', sans-serif"
+                fontWeight="800"
+                fontFamily="'Montserrat', 'Arial', sans-serif"
+                style={{ fontVariantNumeric: 'tabular-nums' }}
                 className="pointer-events-none select-none"
             >
-                {String(position.numero).padStart(2, '0')}
+                {position.numero}
             </text>
 
-            {/* Status label (empresa se houver) */}
             {empresa && (
                 <text
                     x={cx}
-                    y={cy + numFontSize * 0.55}
+                    y={cy + numFontSize * 0.6}
                     textAnchor="middle"
                     dominantBaseline="central"
                     fill={subTextColor}
-                    fontSize={subFontSize}
+                    fontSize={6.5}
                     fontWeight="600"
+                    fontFamily="'Montserrat', 'Arial', sans-serif"
                     className="pointer-events-none select-none"
                 >
-                    {empresa.length > 10 ? empresa.substring(0, 9) + '…' : empresa}
+                    {empresa.length > 7 ? empresa.substring(0, 6) + '…' : empresa}
                 </text>
-            )}
-
-            {/* Hover overlay */}
-            <rect
-                x={position.x}
-                y={position.y}
-                width={position.width}
-                height={position.height}
-                rx={4}
-                fill="white"
-                opacity={0}
-                className="hover:opacity-[0.1] transition-opacity duration-150"
-            />
-
-            {/* Selecionado: pulsação */}
-            {isSelected && (
-                <rect
-                    x={position.x - 6}
-                    y={position.y - 6}
-                    width={position.width + 12}
-                    height={position.height + 12}
-                    rx={8}
-                    fill="none"
-                    stroke="#ffffff"
-                    strokeWidth={4}
-                    opacity={0.8}
-                >
-                    <animate attributeName="opacity" values="0.8;0.2;0.8" dur="1.5s" repeatCount="indefinite" />
-                </rect>
             )}
 
             {/* Destaque de busca */}
             {isHighlighted && !isSelected && (
                 <rect
-                    x={position.x - 8}
-                    y={position.y - 8}
-                    width={position.width + 16}
-                    height={position.height + 16}
-                    rx={10}
+                    x={position.x - 6}
+                    y={position.y - 6}
+                    width={position.width + 12}
+                    height={position.height + 12}
+                    rx={9}
                     fill="none"
-                    stroke="#f59e0b"
-                    strokeWidth={6}
-                    opacity={0.9}
+                    stroke={standSelectedColor}
+                    strokeWidth={5}
                 >
-                    <animate attributeName="opacity" values="1;0.3;1" dur="0.8s" repeatCount="indefinite" />
-                    <animate attributeName="strokeWidth" values="6;10;6" dur="0.8s" repeatCount="indefinite" />
+                    <animate attributeName="opacity" values="1;0.3;1" dur="0.9s" repeatCount="indefinite" />
                 </rect>
             )}
         </g>

@@ -1,123 +1,84 @@
 'use client';
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState } from 'react';
+import Link from 'next/link';
 import { useStands } from '@/hooks/useStands';
 import StandMap from '@/components/StandMap';
-import StandModal from '@/components/StandModal';
+import StandPanel from '@/components/StandPanel';
 import DashboardStats from '@/components/DashboardStats';
 import { Stand } from '@/types/stand';
-import Link from 'next/link';
 
 export default function HomePage() {
   const { stands, loading, stats, updateStand } = useStands();
-  const [selectedStand, setSelectedStand] = useState<Stand | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const mapWrapperRef = useRef<HTMLDivElement>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // sempre a versão mais nova do stand (reflete a reserva recém-feita)
+  const selectedStand = stands.find((s) => s.id === selectedId) ?? null;
 
   const handleStandClick = (stand: Stand) => {
-    setSelectedStand(stand);
-    setIsModalOpen(true);
-  };
-
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setSelectedStand(null);
-  };
-
-  const toggleFullscreen = useCallback(async () => {
-    if (!document.fullscreenElement) {
-      await mapWrapperRef.current?.requestFullscreen();
-      setIsFullscreen(true);
-    } else {
-      await document.exitFullscreen();
-      setIsFullscreen(false);
+    setSelectedId(stand.id);
+    if (window.matchMedia('(max-width: 1023px)').matches) {
+      document.getElementById('stand-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
-  }, []);
-
-  // Listener para ESC sair do fullscreen
-  React.useEffect(() => {
-    const onFsChange = () => setIsFullscreen(!!document.fullscreenElement);
-    document.addEventListener('fullscreenchange', onFsChange);
-    return () => document.removeEventListener('fullscreenchange', onFsChange);
-  }, []);
+  };
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-950">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-400 text-lg">Carregando mapa...</p>
+          <div className="w-14 h-14 border-4 border-[#D9B26A] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-[#C8CEDA]">Carregando mapa…</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-950">
+    <div className="min-h-screen relative overflow-x-hidden">
+      <div aria-hidden className="pointer-events-none fixed -left-80 -top-[420px] w-[1000px] h-[1000px] rounded-full bg-[radial-gradient(circle,rgba(64,122,224,.42),transparent_66%)]" />
+      <div aria-hidden className="pointer-events-none fixed -right-72 -bottom-[420px] w-[900px] h-[900px] rounded-full bg-[radial-gradient(circle,rgba(130,170,240,.26),transparent_66%)]" />
+
       {/* Header */}
-      <header className="sticky top-0 z-30 bg-gray-950/80 backdrop-blur-xl border-b border-gray-800/50">
-        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-              T3 Experience
+      <header className="relative z-10 border-b border-[#D9B26A]/40 bg-[linear-gradient(100deg,#091B3B_22%,rgba(15,40,80,.93)_55%,rgba(9,27,59,.6))]">
+        <div className="max-w-[1490px] mx-auto px-4 sm:px-6 py-5 flex flex-col lg:flex-row lg:items-center gap-5 lg:gap-8">
+          <img src="/logo-t3-2027.png" alt="T3 Experience 2027 · Líderes do Interior" className="w-[220px] sm:w-[260px] h-auto shrink-0" />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2.5 text-xs font-bold tracking-[.32em] uppercase">
+              <span className="w-[7px] h-[7px] rounded-full bg-[#D9B26A]" />
+              Mapa oficial de stands
+            </div>
+            <h1 className="font-display text-[clamp(40px,5vw,72px)] leading-[.92] mt-2">
+              Escolha o seu <em className="not-italic text-[#C8CEDA]">stand.</em>
             </h1>
-            <p className="text-sm text-gray-400 mt-0.5">Mapa Interativo de Stands</p>
+            <p className="text-[#C8CEDA] text-sm font-medium mt-2">Centro de Eventos · Sociedade Rural</p>
+            <Link href="/admin" className="inline-block mt-3 px-3.5 py-2 rounded-xl bg-white/[.07] border border-[#C8CEDA]/35 text-white text-xs font-semibold hover:bg-white/[.14] transition-colors">
+              Área da equipe · reservas e pagamentos
+            </Link>
           </div>
-          <Link
-            href="/admin"
-            className="px-4 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white transition-all text-sm font-medium border border-gray-700/50 hover:border-gray-600"
-          >
-            ⚙️ Admin
-          </Link>
+          <div className="lg:w-[400px]">
+            <DashboardStats stats={stats} />
+          </div>
         </div>
       </header>
 
-      {/* Stats */}
-      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-6">
-        <DashboardStats stats={stats} />
-      </div>
+      <main className="relative z-10 max-w-[1490px] mx-auto p-3 sm:p-5 grid grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_370px] gap-4 lg:gap-5 items-start">
+        <StandMap stands={stands} onStandClick={handleStandClick} selectedStandId={selectedId} />
 
-      {/* Map — largura total */}
-      <main className="max-w-[1400px] mx-auto px-4 sm:px-6 pb-8">
-        <div
-          ref={mapWrapperRef}
-          className="relative"
-          style={isFullscreen ? { background: '#0f172a', padding: '1rem' } : {}}
+        <aside
+          id="stand-panel"
+          aria-label="Detalhes do stand"
+          className="lg:sticky lg:top-4 rounded-[26px] border border-[#C8CEDA]/25 bg-[#091B3B]/70 backdrop-blur-xl shadow-[0_30px_70px_-30px_rgba(0,0,0,.6)] overflow-hidden scroll-mt-4"
         >
-          {/* Botão fullscreen */}
-          <button
-            onClick={toggleFullscreen}
-            title={isFullscreen ? 'Sair da tela cheia' : 'Tela cheia'}
-            className="absolute top-3 right-3 z-20 w-9 h-9 flex items-center justify-center rounded-xl bg-gray-800/90 hover:bg-gray-700 text-white border border-gray-600/50 transition-all shadow-lg text-base"
-          >
-            {isFullscreen ? '⛶' : '⛶'}
-            <span className="sr-only">{isFullscreen ? 'Sair fullscreen' : 'Fullscreen'}</span>
-          </button>
-
-          <StandMap
-            stands={stands}
-            onStandClick={handleStandClick}
-            selectedStandId={selectedStand?.id}
-          />
-        </div>
+          <StandPanel stand={selectedStand} onReserve={updateStand} />
+          <div className="border-t border-[#C8CEDA]/25 px-6 py-3 text-xs text-[#9FB0CF] flex items-center justify-between">
+            <span>{stats.total} stands no evento</span>
+            <span>Reserva sujeita a confirmação</span>
+          </div>
+        </aside>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-gray-800/50 py-4 text-center">
-        <p className="text-sm text-gray-500">
-          T3 Experience © {new Date().getFullYear()} • {stats.vendido} vendidos de {stats.total} stands
-        </p>
+      <footer className="relative z-10 text-center px-5 pt-2 pb-7 text-[11px] tracking-[.28em] uppercase text-[#7F93B8]">
+        T3 Experience 2027 · Líderes do Interior
       </footer>
-
-      {/* Modal */}
-      <StandModal
-        stand={selectedStand}
-        isOpen={isModalOpen}
-        onClose={handleCloseModal}
-        onSave={updateStand}
-        isAdmin={false}
-      />
     </div>
   );
 }

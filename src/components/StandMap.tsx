@@ -2,8 +2,9 @@
 
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { Stand } from '@/types/stand';
-import { standPositions, specialAreas, corridors, annotations, sectors, venueLines, sectorOf, SVG_W, SVG_H } from '@/data/mapLayout';
-import { standTypeLabels, standTypeColors, standStatusColors } from '@/utils/standColors';
+import { standPositions, specialAreas, annotations, sectors, venueLines, sectorOf, SVG_W, SVG_H } from '@/data/mapLayout';
+import { standStatusColors, standStatusBorderColors, standStatusLabels, standStatusAccent, standSelectedColor } from '@/utils/standColors';
+import { StandStatus } from '@/types/stand';
 import StandItem from './StandItem';
 
 interface StandMapProps {
@@ -13,7 +14,6 @@ interface StandMapProps {
 }
 
 const MIN_ZOOM = 0.4;
-const FULLSCREEN_CLASS = 'standmap-fullscreen';
 const MAX_ZOOM = 4;
 
 export default function StandMap({ stands, onStandClick, selectedStandId }: StandMapProps) {
@@ -22,7 +22,7 @@ export default function StandMap({ stands, onStandClick, selectedStandId }: Stan
 
     /* ── state ── */
     const [tooltip, setTooltip] = useState<{ x: number; y: number; stand: Stand } | null>(null);
-    const [zoom, setZoom] = useState(0.85);
+    const [zoom, setZoom] = useState(1);
     const [pan, setPan] = useState({ x: 0, y: 0 });
     const [isPanning, setIsPanning] = useState(false);
     const panStartRef = useRef({ x: 0, y: 0 });
@@ -32,9 +32,9 @@ export default function StandMap({ stands, onStandClick, selectedStandId }: Stan
     const [searchQuery, setSearchQuery] = useState('');
     const [highlightedStand, setHighlightedStand] = useState<number | null>(null);
 
-    // Show/hide image overlay
-    const [showImage, setShowImage] = useState(false);
-    const [overlayOpacity, setOverlayOpacity] = useState(0.5);
+    // Filtros
+    const [sectorFilter, setSectorFilter] = useState<string>('all');
+    const [statusFilter, setStatusFilter] = useState<'all' | StandStatus>('all');
 
     // Touch state
     const lastTouchDistRef = useRef<number | null>(null);
@@ -112,11 +112,11 @@ export default function StandMap({ stands, onStandClick, selectedStandId }: Stan
         const rect = getSvgRect();
         if (rect) {
             const nz = zoom - 0.1;
-            if (nz <= 0.85) { setZoom(0.85); setPan({ x: 0, y: 0 }); }
+            if (nz <= 1) { setZoom(1); setPan({ x: 0, y: 0 }); }
             else zoomAtPoint(nz, rect.left + rect.width / 2, rect.top + rect.height / 2);
         }
     };
-    const handleZoomReset = () => { setZoom(0.85); setPan({ x: 0, y: 0 }); };
+    const handleZoomReset = () => { setZoom(1); setPan({ x: 0, y: 0 }); };
 
     /* ── Wheel zoom ── */
     useEffect(() => {
@@ -134,7 +134,7 @@ export default function StandMap({ stands, onStandClick, selectedStandId }: Stan
                 setPan(prevPan => {
                     const nx = cx - scale * (cx - prevPan.x);
                     const ny = cy - scale * (cy - prevPan.y);
-                    if (newZoom <= 0.85) return { x: 0, y: 0 };
+                    if (newZoom <= 1) return { x: 0, y: 0 };
                     return { x: nx, y: ny };
                 });
                 return newZoom;
@@ -146,7 +146,7 @@ export default function StandMap({ stands, onStandClick, selectedStandId }: Stan
 
     /* ── Mouse pan ── */
     const handleMouseDown = useCallback((e: React.MouseEvent) => {
-        if (zoom > 0.85) {
+        if (zoom > 1) {
             e.preventDefault();
             setIsPanning(true);
             panStartRef.current = { x: e.clientX - pan.x, y: e.clientY - pan.y };
@@ -177,7 +177,7 @@ export default function StandMap({ stands, onStandClick, selectedStandId }: Stan
         } else if (e.touches.length === 1) {
             touchStartTimeRef.current = Date.now();
             touchStartPosRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-            if (zoom > 0.85) {
+            if (zoom > 1) {
                 setIsPanning(true);
                 panStartRef.current = { x: e.touches[0].clientX - pan.x, y: e.touches[0].clientY - pan.y };
             }
@@ -198,7 +198,7 @@ export default function StandMap({ stands, onStandClick, selectedStandId }: Stan
             }
             lastTouchDistRef.current = dist;
             lastTouchCenterRef.current = { x: centerX, y: centerY };
-        } else if (e.touches.length === 1 && isPanning && zoom > 0.85) {
+        } else if (e.touches.length === 1 && isPanning && zoom > 1) {
             const nx = e.touches[0].clientX - panStartRef.current.x;
             const ny = e.touches[0].clientY - panStartRef.current.y;
             setPan(clampPan(nx, ny, zoom));
@@ -211,17 +211,29 @@ export default function StandMap({ stands, onStandClick, selectedStandId }: Stan
         setIsPanning(false);
     }, []);
 
-    /* ── Search ── */
+    /* ── Busca e filtros ── */
+    const normalize = (v: string) => v.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+
+    const matchesFilters = useCallback((numero: number, stand?: Stand) => {
+        const sec = sectorOf(numero);
+        if (sectorFilter !== 'all' && String(sec?.numero) !== sectorFilter) return false;
+        if (statusFilter !== 'all' && (stand?.status ?? 'disponivel') !== statusFilter) return false;
+        const q = normalize(searchQuery.replace(/^stand\s*/i, ''));
+        if (!q) return true;
+        if (/^\d+$/.test(q)) return numero === Number(q);
+        return normalize(`${sec?.nome ?? ''} ${stand?.empresa ?? ''}`).includes(q);
+    }, [sectorFilter, statusFilter, searchQuery]);
+
+    const isFiltering = sectorFilter !== 'all' || statusFilter !== 'all' || searchQuery.trim() !== '';
+
     const searchResults = useMemo(() => {
         if (!searchQuery.trim()) return [];
-        const q = searchQuery.toLowerCase().trim();
-        const num = parseInt(q, 10);
-        if (!isNaN(num)) {
-            const stand = stands.find(s => s.numero === num);
-            return stand ? [stand] : [];
-        }
-        return stands.filter(s => s.empresa?.toLowerCase().includes(q)).slice(0, 5);
-    }, [searchQuery, stands]);
+        return standPositions
+            .filter(p => matchesFilters(p.numero, getStandByNumero(p.numero)))
+            .map(p => getStandByNumero(p.numero))
+            .filter((s): s is Stand => !!s)
+            .slice(0, 8);
+    }, [searchQuery, matchesFilters, getStandByNumero]);
 
     const focusOnStand = useCallback((numero: number) => {
         const pos = standPositions.find(p => p.numero === numero);
@@ -242,15 +254,18 @@ export default function StandMap({ stands, onStandClick, selectedStandId }: Stan
 
     const handleSearchSelect = (stand: Stand) => {
         focusOnStand(stand.numero);
+        onStandClick(stand);
         setSearchQuery('');
     };
 
-    const tipoColors: Record<string, string> = {
-        ouro: '#f59e0b',
-        prata: '#94a3b8',
-        bronze: '#b45309',
-        master: '#a855f7',
-    };
+    const counts = useMemo(() => {
+        const c = { disponivel: 0, reservado: 0, vendido: 0 };
+        standPositions.forEach(p => { c[getStandByNumero(p.numero)?.status ?? 'disponivel']++; });
+        return c;
+    }, [getStandByNumero]);
+
+    // cores das anotações claras demais para o fundo claro
+    const annotationColor: Record<string, string> = { '#22c55e': '#15803d', '#4ade80': '#3f8f5a', '#facc15': '#977235' };
 
     const zoomPercent = Math.round(zoom * 100);
 
@@ -259,11 +274,8 @@ export default function StandMap({ stands, onStandClick, selectedStandId }: Stan
     const toggleFullscreen = useCallback(async () => {
         const el = containerRef.current;
         if (!el) return;
-        if (!document.fullscreenElement) {
-            await el.requestFullscreen();
-        } else {
-            await document.exitFullscreen();
-        }
+        if (!document.fullscreenElement) await el.requestFullscreen();
+        else await document.exitFullscreen();
     }, []);
     useEffect(() => {
         const onChange = () => setIsFullscreen(!!document.fullscreenElement);
@@ -271,98 +283,84 @@ export default function StandMap({ stands, onStandClick, selectedStandId }: Stan
         return () => document.removeEventListener('fullscreenchange', onChange);
     }, []);
 
+    const control = 'h-10 rounded-xl bg-white/[.07] border border-[#C8CEDA]/35 text-white text-sm outline-none focus-visible:ring-2 focus-visible:ring-[#D9B26A] transition-colors hover:bg-white/[.14]';
+    const sectorOptions = sectors.filter(s => s.numero < 100).sort((a, b) => a.numero - b.numero);
+    const tentOptions = sectors.filter(s => s.numero >= 100);
+
     return (
-        <div ref={containerRef} className="relative w-full overflow-hidden bg-gray-950 rounded-2xl border border-gray-700/50 shadow-2xl">
-            {/* ═══ TOP BAR ═══ */}
-            <div className="absolute top-0 left-0 right-0 z-20 flex flex-wrap items-center justify-between gap-2 px-3 py-2 bg-gray-900/90 backdrop-blur-md border-b border-gray-700/30">
-                {/* Search */}
-                <div className="relative flex-1 min-w-[140px] max-w-[220px]">
+        <div ref={containerRef} className={`relative w-full overflow-hidden rounded-[26px] border border-[#C8CEDA]/25 bg-[#091B3B]/70 backdrop-blur-xl shadow-[0_30px_70px_-30px_rgba(0,0,0,.6)] ${isFullscreen ? 'flex flex-col h-full' : ''}`}>
+            {/* ═══ TOOLBAR ═══ */}
+            <div className="relative z-20 flex flex-wrap items-center gap-2.5 px-4 py-3.5 border-b border-[#C8CEDA]/25">
+                <label className="relative flex-1 min-w-[170px]">
+                    <span className="sr-only">Buscar stand, setor ou empresa</span>
                     <input
-                        type="text"
+                        type="search"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="🔍 Buscar stand..."
-                        className="w-full bg-gray-800/90 border border-gray-600/50 rounded-lg px-3 py-1.5 text-sm text-white placeholder-gray-500 focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none transition-all"
+                        onKeyDown={(e) => { if (e.key === 'Enter' && searchResults[0]) handleSearchSelect(searchResults[0]); }}
+                        placeholder="Buscar número, setor ou empresa"
+                        className={`${control} w-full px-3 placeholder:text-[#8DA0C4]`}
                     />
-                    {searchQuery.trim() && searchResults.length > 0 && (
-                        <div className="absolute top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-600/50 rounded-lg shadow-2xl overflow-hidden z-50">
+                    {searchQuery.trim() && (
+                        <div className="absolute top-full left-0 right-0 mt-1.5 bg-[#0F2850] border border-[#C8CEDA]/30 rounded-xl shadow-2xl overflow-hidden z-50 max-h-72 overflow-y-auto">
+                            {searchResults.length === 0 && <p className="px-3 py-2.5 text-[#9FB0CF] text-sm">Nenhum stand encontrado.</p>}
                             {searchResults.map(s => (
                                 <button
                                     key={s.id}
                                     onClick={() => handleSearchSelect(s)}
-                                    className="w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-gray-700 transition-colors flex items-center gap-2"
+                                    className="w-full text-left px-3 py-2 text-sm text-white hover:bg-white/10 flex items-center justify-between gap-3"
                                 >
-                                    <span className="font-bold text-amber-400">#{String(s.numero).padStart(2, '0')}</span>
-                                    {s.empresa && <span className="text-gray-400 text-xs truncate">{s.empresa}</span>}
+                                    <span className="font-bold">Stand {s.numero}</span>
+                                    <span className="text-[#9FB0CF] text-xs truncate">{s.empresa || sectorOf(s.numero)?.nome}</span>
                                 </button>
                             ))}
                         </div>
                     )}
-                    {searchQuery.trim() && searchResults.length === 0 && (
-                        <div className="absolute top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-600/50 rounded-lg shadow-2xl px-3 py-2 z-50">
-                            <p className="text-gray-500 text-xs">Nenhum stand encontrado</p>
-                        </div>
-                    )}
-                </div>
-
-
-
-                {/* Legenda de status */}
-                <div className="flex items-center gap-3 text-xs text-gray-300">
-                    {[
-                        { label: 'Disponível', color: standTypeColors.prata },
-                        { label: 'Reservado', color: standStatusColors.reservado },
-                        { label: 'Vendido', color: standStatusColors.vendido },
-                    ].map(item => (
-                        <span key={item.label} className="flex items-center gap-1.5">
-                            <span className="inline-block w-3.5 h-3.5 rounded-sm" style={{ background: item.color }} />
-                            {item.label}
-                        </span>
-                    ))}
-                </div>
-
-                {/* Zoom controls */}
-                <div className="flex items-center gap-1">
-                    <button
-                        onClick={handleZoomOut}
-                        className="w-8 h-8 rounded-lg bg-gray-800/90 hover:bg-gray-700 text-white flex items-center justify-center text-base font-bold border border-gray-600/50 transition-all active:scale-95"
-                    >−</button>
-                    <div className="hidden sm:flex items-center gap-1.5 px-1">
-                        <div className="w-16 h-1.5 bg-gray-700 rounded-full overflow-hidden">
-                            <div
-                                className="h-full bg-gradient-to-r from-amber-500 to-orange-500 rounded-full transition-all duration-200"
-                                style={{ width: `${((zoom - MIN_ZOOM) / (MAX_ZOOM - MIN_ZOOM)) * 100}%` }}
-                            />
-                        </div>
-                    </div>
-                    <button
-                        onClick={handleZoomReset}
-                        className="h-8 px-2 rounded-lg bg-gray-800/90 hover:bg-gray-700 text-white flex items-center justify-center text-xs font-bold border border-gray-600/50 transition-all active:scale-95 min-w-[44px]"
-                    >{zoomPercent}%</button>
-                    <button
-                        onClick={handleZoomIn}
-                        className="w-8 h-8 rounded-lg bg-gray-800/90 hover:bg-gray-700 text-white flex items-center justify-center text-base font-bold border border-gray-600/50 transition-all active:scale-95"
-                    >+</button>
-
-                    {/* Fullscreen */}
-                    <button
-                        onClick={toggleFullscreen}
-                        title={isFullscreen ? 'Sair da tela cheia (ESC)' : 'Tela cheia'}
-                        className="w-8 h-8 ml-1 rounded-lg bg-gray-800/90 hover:bg-amber-600 text-white flex items-center justify-center border border-gray-600/50 transition-all active:scale-95 text-sm"
-                    >
+                </label>
+                <label>
+                    <span className="sr-only">Filtrar por setor</span>
+                    <select value={sectorFilter} onChange={(e) => setSectorFilter(e.target.value)} className={`${control} px-3`}>
+                        <option className="text-[#0F2850]" value="all">Todos os setores</option>
+                        {sectorOptions.map(s => (
+                            <option className="text-[#0F2850]" key={s.numero} value={s.numero}>{String(s.numero).padStart(2, '0')} · {s.nome}</option>
+                        ))}
+                        {tentOptions.map(s => (
+                            <option className="text-[#0F2850]" key={s.numero} value={s.numero}>Tenda · {s.nome}</option>
+                        ))}
+                    </select>
+                </label>
+                <label>
+                    <span className="sr-only">Filtrar por status</span>
+                    <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as 'all' | StandStatus)} className={`${control} px-3`}>
+                        <option className="text-[#0F2850]" value="all">Todos os status</option>
+                        <option className="text-[#0F2850]" value="disponivel">Disponíveis</option>
+                        <option className="text-[#0F2850]" value="reservado">Reservados</option>
+                        <option className="text-[#0F2850]" value="vendido">Vendidos</option>
+                    </select>
+                </label>
+                {isFiltering && (
+                    <button onClick={() => { setSectorFilter('all'); setStatusFilter('all'); setSearchQuery(''); }} className={`${control} px-3 font-semibold`}>
+                        Limpar
+                    </button>
+                )}
+                <div className="flex items-center gap-1.5 ml-auto">
+                    <button onClick={handleZoomOut} aria-label="Diminuir zoom" className={`${control} w-10 text-lg font-bold`}>−</button>
+                    <button onClick={handleZoomReset} aria-label="Restaurar zoom" className={`${control} px-2 min-w-[56px] text-xs font-bold tabular-nums`}>{zoomPercent}%</button>
+                    <button onClick={handleZoomIn} aria-label="Aumentar zoom" className={`${control} w-10 text-lg font-bold`}>+</button>
+                    <button onClick={toggleFullscreen} title={isFullscreen ? 'Sair da tela cheia (ESC)' : 'Tela cheia'} className={`${control} w-10`}>
                         {isFullscreen ? '⊠' : '⛶'}
                     </button>
                 </div>
             </div>
 
-            {/* ═══ Map container ═══ */}
+            {/* ═══ Mapa ═══ */}
             <div
                 ref={svgContainerRef}
-                className="w-full overflow-hidden pt-12"
+                className={`w-full overflow-hidden ${isFullscreen ? 'flex-1' : ''}`}
                 style={{
-                    cursor: zoom > 0.65 ? (isPanning ? 'grabbing' : 'grab') : 'default',
+                    cursor: zoom > 1 ? (isPanning ? 'grabbing' : 'grab') : 'default',
                     touchAction: 'none',
-                    background: '#0f172a',
+                    background: 'linear-gradient(160deg,#F5F7FB,#E4E9F2)',
                 }}
                 onMouseDown={handleMouseDown}
                 onMouseMove={handleMouseMove}
@@ -376,157 +374,77 @@ export default function StandMap({ stands, onStandClick, selectedStandId }: Stan
                     viewBox={`0 0 ${SVG_W} ${SVG_H}`}
                     className="w-full h-auto"
                     style={{
-                        maxHeight: '82vh',
+                        maxHeight: isFullscreen ? '100%' : '80vh',
                         transform: `scale(${zoom}) translate(${pan.x / zoom}px, ${pan.y / zoom}px)`,
                         transformOrigin: 'center center',
                         transition: isPanning ? 'none' : 'transform 0.2s ease-out',
                         willChange: 'transform',
+                        fontFamily: "'Montserrat', Arial, sans-serif",
                     }}
                 >
                     <defs>
-                        <linearGradient id="bg-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <stop offset="0%" stopColor="#0c1222" />
-                            <stop offset="100%" stopColor="#0f172a" />
-                        </linearGradient>
-                        <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
-                            <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#1e293b" strokeWidth="0.4" opacity="0.5" />
+                        <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse">
+                            <path d="M 24 0 L 0 0 0 24" fill="none" stroke="#D7DFED" strokeWidth="0.8" />
                         </pattern>
-                        <filter id="highlight-glow" x="-50%" y="-50%" width="200%" height="200%">
-                            <feGaussianBlur stdDeviation="4" result="blur" />
-                            <feFlood floodColor="#f59e0b" floodOpacity="0.7" result="color" />
-                            <feComposite in="color" in2="blur" operator="in" result="glow" />
-                            <feMerge>
-                                <feMergeNode in="glow" />
-                                <feMergeNode in="SourceGraphic" />
-                            </feMerge>
-                        </filter>
-                        {/* Clip to SVG bounds */}
-                        <clipPath id="svgClip">
-                            <rect width={SVG_W} height={SVG_H} />
-                        </clipPath>
                     </defs>
 
-                    {/* ─── BACKGROUND ─── */}
-                    <rect width={SVG_W} height={SVG_H} fill="url(#bg-gradient)" />
+                    <rect width={SVG_W} height={SVG_H} fill="#EEF2F8" />
                     <rect width={SVG_W} height={SVG_H} fill="url(#grid)" />
-
-                    {/* ─── IMAGEM DE REFERÊNCIA (semitransparente) ─── */}
-                    {showImage && (
-                        <image
-                            href="/mapa_t3.png"
-                            x="0" y="0"
-                            width={SVG_W} height={SVG_H}
-                            opacity={overlayOpacity}
-                            clipPath="url(#svgClip)"
-                            style={{ mixBlendMode: 'luminosity' }}
-                        />
-                    )}
-
-                    {/* ─── CORREDORES ─── */}
-                    {corridors.map((c, i) => (
-                        <rect
-                            key={`corridor-${i}`}
-                            x={c.x} y={c.y}
-                            width={c.width} height={c.height}
-                            fill="#0f172a"
-                            stroke="#1e293b"
-                            strokeWidth={0.5}
-                            opacity={0.7}
-                        />
-                    ))}
 
                     {/* ─── CONTORNO DO TERRENO ─── */}
                     {venueLines.map((d, i) => (
-                        <path key={`venue-${i}`} d={d} fill="none" stroke="#475569" strokeWidth={3} strokeLinejoin="round" opacity={0.8} />
+                        <path key={`venue-${i}`} d={d} fill={i === 0 ? '#F7F9FD' : 'none'} stroke="#9EB1CF" strokeWidth={2.5} strokeLinejoin="round" />
                     ))}
 
                     {/* ─── ÁREAS ESPECIAIS ─── */}
-                    {specialAreas.map((area) => (
-                        <g key={area.id}>
-                            {/* Fundo */}
-                            <rect
-                                x={area.x} y={area.y}
-                                width={area.width} height={area.height}
-                                rx={area.borderRadius ?? 4}
-                                fill={area.id === 'lounge' ? '#fef5ea' : area.color}
-                                opacity={area.id === 'lounge' ? 1 : 0.25}
-                                stroke={area.color}
-                                strokeWidth={area.id === 'lounge' ? 3 : 1.5}
-                                strokeOpacity={0.8}
-                            />
-                            {/* Hachura diagonal (lounge) */}
-                            {area.id === 'lounge' && (
-                                <path
-                                    d={(() => {
-                                        const lines = [];
-                                        const step = 17;
-                                        for (let i = -area.height; i < area.width + area.height; i += step) {
-                                            lines.push(`M ${area.x + Math.max(0, i)} ${area.y} L ${area.x + Math.min(area.width, i + area.height)} ${area.y + Math.min(area.height, i + area.height > area.width ? area.height - (i + area.height - area.width) : area.height)}`);
-                                        }
-                                        return lines.join(' ');
-                                    })()}
-                                    stroke={area.color}
-                                    strokeWidth={0.8}
-                                    opacity={0.07}
-                                    clipPath={`url(#clip-${area.id})`}
+                    {specialAreas.map((area) => {
+                        const isStreet = area.id === 'rua-carlos' || area.id === 'av-geraldo';
+                        return (
+                            <g key={area.id} className="select-none pointer-events-none">
+                                <rect
+                                    x={area.x} y={area.y}
+                                    width={area.width} height={area.height}
+                                    rx={area.borderRadius ?? 4}
+                                    fill={isStreet ? '#CCD8EB' : area.color}
+                                    fillOpacity={isStreet ? 1 : 0.1}
+                                    stroke={isStreet ? 'none' : area.color}
+                                    strokeOpacity={0.55}
+                                    strokeWidth={1.4}
                                 />
-                            )}
-                            {/* Clip para hachura */}
-                            {area.id === 'lounge' && (
-                                <clipPath id={`clip-${area.id}`}>
-                                    <rect x={area.x} y={area.y} width={area.width} height={area.height} rx={area.borderRadius ?? 4} />
-                                </clipPath>
-                            )}
-                            {/* Ícone ☕ (lounge) */}
-                            {area.id === 'lounge' && (
-                                <text
-                                    x={area.x + area.width / 2}
-                                    y={area.y + area.height / 2 - 38}
-                                    textAnchor="middle"
-                                    dominantBaseline="central"
-                                    fontSize={30}
-                                    className="select-none pointer-events-none"
-                                >☕</text>
-                            )}
-                            {/* Label principal */}
-                            {area.label && (
-                                <text
-                                    x={area.x + area.width / 2}
-                                    y={area.y + area.height / 2 + (area.subLabel ? -4 : 0)}
-                                    textAnchor="middle"
-                                    dominantBaseline="central"
-                                    fill={area.textColor || area.color}
-                                    fontSize={area.fontSize || 14}
-                                    fontWeight="700"
-                                    fontStyle={area.id === 'lounge' ? 'italic' : 'normal'}
-                                    fontFamily={area.id === 'lounge' ? 'Georgia, serif' : 'inherit'}
-                                    letterSpacing={area.id === 'lounge' ? '0.2em' : '0'}
-                                    opacity={0.9}
-                                    transform={area.rotation ? `rotate(${area.rotation}, ${area.x + area.width / 2}, ${area.y + area.height / 2})` : undefined}
-                                    className="select-none pointer-events-none"
-                                >
-                                    {area.label}
-                                </text>
-                            )}
-                            {/* SubLabel */}
-                            {area.subLabel && (
-                                <text
-                                    x={area.x + area.width / 2}
-                                    y={area.y + area.height / 2 + (area.fontSize || 14) + 8}
-                                    textAnchor="middle"
-                                    dominantBaseline="central"
-                                    fill={area.textColor || area.color}
-                                    fontSize={9}
-                                    fontWeight="500"
-                                    letterSpacing="0.2em"
-                                    opacity={0.65}
-                                    className="select-none pointer-events-none"
-                                >
-                                    {area.subLabel.toUpperCase()}
-                                </text>
-                            )}
-                        </g>
-                    ))}
+                                {area.label && (
+                                    <text
+                                        x={area.x + area.width / 2}
+                                        y={area.y + area.height / 2 + (area.subLabel ? -4 : 0)}
+                                        textAnchor="middle"
+                                        dominantBaseline="central"
+                                        fill={isStreet ? '#52678A' : area.color}
+                                        fontSize={area.fontSize || 14}
+                                        fontWeight="800"
+                                        letterSpacing={isStreet ? '0.18em' : '0.04em'}
+                                        transform={area.rotation ? `rotate(${area.rotation}, ${area.x + area.width / 2}, ${area.y + area.height / 2})` : undefined}
+                                    >
+                                        {area.id === 'centro-eventos'
+                                            ? <tspan fill="#0F2850" fontFamily="'Bebas Neue', sans-serif" fontWeight="400" fontSize={44} letterSpacing="0.02em">{area.label}</tspan>
+                                            : area.label}
+                                    </text>
+                                )}
+                                {area.subLabel && (
+                                    <text
+                                        x={area.x + area.width / 2}
+                                        y={area.y + area.height / 2 + (area.id === 'centro-eventos' ? 30 : (area.fontSize || 14) + 6)}
+                                        textAnchor="middle"
+                                        dominantBaseline="central"
+                                        fill={area.id === 'centro-eventos' ? '#52678A' : area.color}
+                                        fontSize={area.id === 'centro-eventos' ? 15 : 9}
+                                        fontWeight="700"
+                                        letterSpacing="0.16em"
+                                    >
+                                        {area.subLabel.toUpperCase()}
+                                    </text>
+                                )}
+                            </g>
+                        );
+                    })}
 
                     {/* ─── ANOTAÇÕES ─── */}
                     {annotations.map((a, i) => (
@@ -535,12 +453,12 @@ export default function StandMap({ stands, onStandClick, selectedStandId }: Stan
                             x={a.x} y={a.y}
                             textAnchor="middle"
                             dominantBaseline="central"
-                            fill={a.color || '#94a3b8'}
+                            fill={annotationColor[a.color ?? ''] || a.color || '#52678A'}
                             fontSize={a.fontSize || 9}
-                            fontWeight={a.type === 'entrance' ? 'bold' : 'normal'}
-                            opacity={0.8}
+                            fontWeight={700}
+                            letterSpacing="0.06em"
                             transform={a.rotation ? `rotate(${a.rotation}, ${a.x}, ${a.y})` : undefined}
-                            className="select-none pointer-events-none tracking-wide"
+                            className="select-none pointer-events-none"
                         >
                             {a.label}
                         </text>
@@ -548,54 +466,26 @@ export default function StandMap({ stands, onStandClick, selectedStandId }: Stan
 
                     {/* ─── ETIQUETAS DOS SETORES ─── */}
                     {sectors.map((s) => {
-                        const h = 34;
-                        const badgeR = 17;
-                        const badgeW = s.hideBadge ? 0 : badgeR * 2;
-                        const fs = Math.min(15, Math.floor((s.labelW - badgeW - 8) / (s.nome.length * 0.58)));
+                        const h = 32;
+                        const badgeR = 15;
+                        const badgeW = s.hideBadge ? 0 : badgeR * 2 + 4;
+                        const fs = Math.min(14, Math.floor((s.labelW - badgeW - 14) / (s.nome.length * 0.62)));
+                        const active = sectorFilter === String(s.numero);
                         return (
                             <g key={`sector-${s.numero}`} className="select-none pointer-events-none">
-                                <rect
-                                    x={s.labelX} y={s.labelY}
-                                    width={s.labelW} height={h}
-                                    rx={h / 2}
-                                    fill="#f8fafc"
-                                    stroke="#f59e0b"
-                                    strokeWidth={2}
-                                />
-                                <text
-                                    x={s.labelX + (s.labelW - badgeW) / 2 + (s.hideBadge ? 0 : 4)}
-                                    y={s.labelY + h / 2}
-                                    textAnchor="middle"
-                                    dominantBaseline="central"
-                                    fill="#1e3a8a"
-                                    fontSize={fs}
-                                    fontWeight="800"
-                                    fontFamily="'Inter', 'Arial', sans-serif"
-                                >
-                                    {s.nome}
-                                </text>
+                                <rect x={s.labelX} y={s.labelY} width={s.labelW} height={h} rx={h / 2}
+                                    fill={active ? '#16376A' : '#0F2850'} stroke={standSelectedColor} strokeWidth={active ? 2.5 : 0} />
                                 {!s.hideBadge && (<>
-                                <circle
-                                    cx={s.labelX + s.labelW - badgeR + 2}
-                                    cy={s.labelY + h / 2}
-                                    r={badgeR}
-                                    fill="#f97316"
-                                    stroke="#f8fafc"
-                                    strokeWidth={2}
-                                />
-                                <text
-                                    x={s.labelX + s.labelW - badgeR + 2}
-                                    y={s.labelY + h / 2 + 1}
-                                    textAnchor="middle"
-                                    dominantBaseline="central"
-                                    fill="#ffffff"
-                                    fontSize={16}
-                                    fontWeight="900"
-                                    fontFamily="'Inter', 'Arial', sans-serif"
-                                >
-                                    {s.numero}
-                                </text>
+                                    <circle cx={s.labelX + badgeR + 1} cy={s.labelY + h / 2} r={badgeR} fill={standSelectedColor} />
+                                    <text x={s.labelX + badgeR + 1} y={s.labelY + h / 2 + 1} textAnchor="middle" dominantBaseline="central"
+                                        fill="#091B3B" fontSize={14} fontWeight="900">
+                                        {String(s.numero).padStart(2, '0')}
+                                    </text>
                                 </>)}
+                                <text x={s.labelX + badgeW + (s.labelW - badgeW) / 2} y={s.labelY + h / 2 + 0.5}
+                                    textAnchor="middle" dominantBaseline="central" fill="#ffffff" fontSize={fs} fontWeight="800" letterSpacing="0.03em">
+                                    {s.nome.toUpperCase()}
+                                </text>
                             </g>
                         );
                     })}
@@ -604,61 +494,60 @@ export default function StandMap({ stands, onStandClick, selectedStandId }: Stan
                     {standPositions.map((pos) => {
                         const stand = getStandByNumero(pos.numero);
                         return (
-                            <g
-                                key={pos.numero}
-                                onMouseEnter={(e) => stand && handleMouseEnter(e, stand)}
-                                onMouseLeave={handleMouseLeave}
-                                filter={highlightedStand === pos.numero ? 'url(#highlight-glow)' : undefined}
-                            >
+                            <g key={pos.numero} onMouseEnter={(e) => stand && handleMouseEnter(e, stand)} onMouseLeave={handleMouseLeave}>
                                 <StandItem
                                     position={pos}
                                     stand={stand}
                                     onClick={onStandClick}
-                                    isSelected={stand?.id === selectedStandId}
+                                    isSelected={!!stand && stand.id === selectedStandId}
                                     isHighlighted={highlightedStand === pos.numero}
+                                    isDimmed={isFiltering && !matchesFilters(pos.numero, stand)}
                                 />
                             </g>
                         );
                     })}
-
-                    {/* ─── BORDA DO MAPA ─── */}
-                    <rect x="2" y="2" width={SVG_W - 4} height={SVG_H - 4} fill="none" stroke="#1e293b" strokeWidth="2" rx="6" opacity="0.8" />
                 </svg>
+            </div>
+
+            {/* ═══ LEGENDA ═══ */}
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 px-4 py-3 border-t border-[#C8CEDA]/25 text-xs text-[#C8CEDA]">
+                {(['disponivel', 'vendido', 'reservado'] as StandStatus[]).map(st => (
+                    <span key={st} className="flex items-center gap-1.5">
+                        <i className="inline-block w-3 h-3 rounded-[3px]" style={{ background: standStatusColors[st], border: `1px solid ${st === 'reservado' ? '#C8CEDA' : standStatusBorderColors[st]}` }} />
+                        {standStatusLabels[st]}
+                    </span>
+                ))}
+                <span className="flex items-center gap-1.5">
+                    <i className="inline-block w-3 h-3 rounded-[3px]" style={{ background: standSelectedColor, border: '1px solid #8D692D' }} />
+                    Selecionado
+                </span>
+                <b className="sm:ml-auto font-semibold text-[#9FB0CF]">
+                    {counts.disponivel} disponíveis · {counts.vendido} vendidos · {counts.reservado} reservados
+                </b>
             </div>
 
             {/* ═══ TOOLTIP ═══ */}
             {tooltip && (
                 <div
-                    className="absolute z-40 pointer-events-none bg-gray-900/95 border border-amber-500/40 rounded-xl px-3 py-2 shadow-2xl backdrop-blur-sm"
-                    style={{
-                        left: tooltip.x,
-                        top: tooltip.y,
-                        transform: 'translate(-50%, -100%)',
-                    }}
+                    className="absolute z-40 pointer-events-none bg-[#091B3B]/95 border border-[#D9B26A]/50 rounded-xl px-3 py-2 shadow-2xl"
+                    style={{ left: tooltip.x, top: tooltip.y, transform: 'translate(-50%, -100%)' }}
                 >
-                    <p className="text-amber-400 font-bold text-sm">
-                        Stand {String(tooltip.stand.numero).padStart(2, '0')}
-                    </p>
+                    <p className="text-white font-bold text-sm">Stand {tooltip.stand.numero}</p>
                     {sectorOf(tooltip.stand.numero) && (
-                        <p className="text-orange-300 text-xs font-semibold">
-                            {sectorOf(tooltip.stand.numero)!.hideBadge ? '' : `Setor ${sectorOf(tooltip.stand.numero)!.numero} · `}{sectorOf(tooltip.stand.numero)!.nome}
+                        <p className="text-[#C8CEDA] text-xs font-semibold">
+                            {sectorOf(tooltip.stand.numero)!.hideBadge ? '' : `Setor ${String(sectorOf(tooltip.stand.numero)!.numero).padStart(2, '0')} · `}{sectorOf(tooltip.stand.numero)!.nome}
                         </p>
                     )}
-                    <p className="text-xs font-medium mt-0.5" style={{ color: tipoColors[tooltip.stand.tipo] || '#94a3b8' }}>
-                        {standTypeLabels[tooltip.stand.tipo] || tooltip.stand.tipo}
+                    <p className="text-xs font-bold mt-0.5" style={{ color: standStatusAccent[tooltip.stand.status] }}>
+                        {standStatusLabels[tooltip.stand.status]}{tooltip.stand.empresa ? ` · ${tooltip.stand.empresa}` : ''}
                     </p>
-                    {tooltip.stand.empresa && (
-                        <p className="text-gray-300 text-xs">{tooltip.stand.empresa}</p>
-                    )}
-                    <p className="text-gray-400 text-xs capitalize">{tooltip.stand.status}</p>
                 </div>
             )}
 
-            {/* ═══ Mobile hint ═══ */}
-            {zoom <= 0.85 && (
-                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 sm:hidden z-10">
-                    <p className="text-[10px] text-gray-500 bg-gray-900/80 px-3 py-1 rounded-full backdrop-blur-sm border border-gray-700/30">
-                        Pinch para zoom • Toque para ver detalhes
+            {zoom <= 1 && (
+                <div className="absolute bottom-14 left-1/2 -translate-x-1/2 sm:hidden z-10">
+                    <p className="text-[10px] text-[#C8CEDA] bg-[#091B3B]/85 px-3 py-1 rounded-full">
+                        Pinça para zoom · toque para ver detalhes
                     </p>
                 </div>
             )}

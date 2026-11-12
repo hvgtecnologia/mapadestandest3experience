@@ -1,21 +1,20 @@
 @import "tailwindcss";
 
+@theme {
+  --font-display: "Bebas Neue", "Montserrat", sans-serif;
+}
+
 @layer base {
-  ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+  html { background: #040c1e; }
+  body {
+    min-height: 100vh;
+    font-family: "Montserrat", system-ui, sans-serif;
+    background: linear-gradient(160deg, #0F2850 0%, #091B3B 100%) fixed;
   }
+  .font-display { letter-spacing: .02em; font-weight: 400; }
 
-  ::-webkit-scrollbar-track {
-    background: #0f172a;
-  }
-
-  ::-webkit-scrollbar-thumb {
-    background: #334155;
-    border-radius: 4px;
-  }
-
-  ::-webkit-scrollbar-thumb:hover {
-    background: #475569;
-  }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: #091B3B; }
+  ::-webkit-scrollbar-thumb { background: #16376A; border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: #2856AA; }
 }

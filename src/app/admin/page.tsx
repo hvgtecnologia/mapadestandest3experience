@@ -9,6 +9,7 @@ import { Stand, StandStatus, StandType } from '@/types/stand';
 import { standStatusAccent, standStatusLabels, standTypeLabels } from '@/utils/standColors';
 import Link from 'next/link';
 import * as XLSX from 'xlsx';
+import { PARTES, updatePartes } from '@/utils/partes';
 
 export default function AdminPage() {
     const { stands, loading, stats, updateStand } = useStands();
@@ -63,11 +64,19 @@ export default function AdminPage() {
         setIsModalOpen(true);
     };
 
-    // Etapas: disponível → reservado → vendido (pago)
-    const confirmPayment = (stand: Stand) => updateStand(stand.id, { status: 'vendido' });
+    // Etapas: disponível → reservado → vendido (pago). Stand dividido: vale para cada terço.
+    const temReserva = (s: Stand) => s.partes ? PARTES.some(p => s.partes![p].status === 'reservado') : s.status === 'reservado';
+    const temOcupado = (s: Stand) => s.partes ? PARTES.some(p => s.partes![p].status !== 'disponivel') : s.status !== 'disponivel';
+
+    const confirmPayment = (stand: Stand) => {
+        if (!stand.partes) return updateStand(stand.id, { status: 'vendido' });
+        const partes = structuredClone(stand.partes);
+        PARTES.forEach(p => { if (partes[p].status === 'reservado') partes[p].status = 'vendido'; });
+        return updateStand(stand.id, updatePartes(partes));
+    };
     const releaseStand = (stand: Stand) => {
-        if (confirm(`Liberar o stand ${stand.numero}? A empresa "${stand.empresa ?? ''}" será removida.`)) {
-            updateStand(stand.id, { status: 'disponivel', empresa: null });
+        if (confirm(`Liberar o stand ${stand.numero} inteiro? Todas as empresas dele serão removidas.`)) {
+            updateStand(stand.id, updatePartes(null));
         }
     };
 
@@ -80,6 +89,7 @@ export default function AdminPage() {
         const data = filteredStands.map((s) => ({
             'Número': s.numero,
             'Empresa': s.empresa || '',
+            'Terços': s.partes ? `${s.partes.orientacao ?? 'vertical'} — ` + PARTES.map(p => `${p}: ${standStatusLabels[s.partes![p].status]}${s.partes![p].empresa ? ` (${s.partes![p].empresa})` : ''}`).join(' | ') : 'Inteiro',
             'Status': standStatusLabels[s.status] || s.status,
             'Tipo': standTypeLabels[s.tipo] || s.tipo,
         }));
@@ -88,6 +98,7 @@ export default function AdminPage() {
         ws['!cols'] = [
             { wch: 8 },   // Número
             { wch: 30 },  // Empresa
+            { wch: 60 },  // Terços
             { wch: 14 },  // Status
             { wch: 14 },  // Tipo
         ];
@@ -222,25 +233,35 @@ export default function AdminPage() {
                                         <td className="px-5 py-3">
                                             <span
                                                 className="inline-block px-2.5 py-1 rounded-full text-[11px] font-bold tracking-[.1em] uppercase"
-                                                style={{ color: standStatusAccent[stand.status], background: `${standStatusAccent[stand.status]}26` }}
+                                                style={stand.partes ? { color: '#D9B26A', background: '#D9B26A26' } : { color: standStatusAccent[stand.status], background: `${standStatusAccent[stand.status]}26` }}
                                             >
-                                                ● {standStatusLabels[stand.status]}
+                                                ● {stand.partes ? 'Em terços' : standStatusLabels[stand.status]}
                                             </span>
                                         </td>
                                         <td className="px-5 py-3 text-white">
-                                            {stand.empresa || <span className="text-[#7F93B8]">—</span>}
+                                            {stand.partes ? (
+                                                <div className="space-y-0.5">
+                                                    {PARTES.map(p => (
+                                                        <div key={p} className="text-xs">
+                                                            <b className="text-[#D9B26A] mr-1.5">{p}</b>
+                                                            <span style={{ color: standStatusAccent[stand.partes![p].status] }}>{standStatusLabels[stand.partes![p].status]}</span>
+                                                            {stand.partes![p].empresa && <span className="text-white"> · {stand.partes![p].empresa}</span>}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : (stand.empresa || <span className="text-[#7F93B8]">—</span>)}
                                         </td>
                                         <td className="px-5 py-3 text-[#9FB0CF]">
                                             {standTypeLabels[stand.tipo]}
                                         </td>
                                         <td className="px-5 py-3 text-right">
                                             <div className="flex justify-end gap-2 whitespace-nowrap">
-                                                {stand.status === 'reservado' && (
+                                                {temReserva(stand) && (
                                                     <button onClick={() => confirmPayment(stand)} className="px-3 py-1.5 rounded-lg text-xs font-bold bg-[#167348] hover:bg-[#1b8a57] text-white transition-colors">
                                                         Confirmar pagamento
                                                     </button>
                                                 )}
-                                                {stand.status !== 'disponivel' && (
+                                                {temOcupado(stand) && (
                                                     <button onClick={() => releaseStand(stand)} className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-[#FFB4BF]/40 text-[#FFB4BF] hover:bg-[#FFB4BF]/10 transition-colors">
                                                         Liberar
                                                     </button>

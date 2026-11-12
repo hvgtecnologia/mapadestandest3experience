@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Stand, StandStatus, StandType } from '@/types/stand';
+import { Orientacao, Stand, StandPartes, StandStatus, StandType } from '@/types/stand';
+import { PARTES, orientacaoNomes, parteNomes, partesVazias, updatePartes } from '@/utils/partes';
 import { standStatusAccent, standStatusLabels, standTypeLabels } from '@/utils/standColors';
 
 interface StandModalProps {
@@ -21,6 +22,7 @@ export default function StandModal({ stand, isOpen, onClose, onSave, isAdmin = f
     const [numeroInput, setNumeroInput] = useState<string>('');
     const [saving, setSaving] = useState(false);
     const [numeroError, setNumeroError] = useState('');
+    const [partes, setPartes] = useState<StandPartes | null>(null);
 
     useEffect(() => {
         if (stand) {
@@ -30,6 +32,7 @@ export default function StandModal({ stand, isOpen, onClose, onSave, isAdmin = f
             setNumero(stand.numero);
             setNumeroInput(String(stand.numero));
             setNumeroError('');
+            setPartes(stand.partes ? structuredClone(stand.partes) : null);
         }
     }, [stand]);
 
@@ -60,12 +63,10 @@ export default function StandModal({ stand, isOpen, onClose, onSave, isAdmin = f
 
         setSaving(true);
         const finalStatus = isAdmin ? status : 'reservado';
-        const result = await onSave(stand.id, {
-            status: finalStatus,
-            empresa: empresa || null,
-            tipo,
-            numero,
-        });
+        const base = isAdmin && partes
+            ? updatePartes(partes)
+            : { status: finalStatus, empresa: empresa || null, partes: null };
+        const result = await onSave(stand.id, { ...base, tipo, numero });
         setSaving(false);
 
         if (result.success) {
@@ -120,7 +121,7 @@ export default function StandModal({ stand, isOpen, onClose, onSave, isAdmin = f
                             style={{ backgroundColor: standStatusAccent[status] }}
                         />
                         <span className="text-sm font-medium text-[#C8CEDA]">
-                            Status atual: <span className="font-bold text-white">{standStatusLabels[status]}</span>
+                            Status atual: <span className="font-bold text-white">{partes ? 'Em terços (veja abaixo)' : standStatusLabels[status]}</span>
                         </span>
                     </div>
 
@@ -155,6 +156,44 @@ export default function StandModal({ stand, isOpen, onClose, onSave, isAdmin = f
                                 )}
                             </div>
 
+                            {/* Divisão em terços */}
+                            <label className="flex items-center gap-3 p-3 rounded-xl bg-white/[.06] cursor-pointer">
+                                <input type="checkbox" checked={!!partes} className="w-4 h-4 accent-[#D9B26A]"
+                                    onChange={(e) => setPartes(e.target.checked
+                                        ? (() => { const p = partesVazias(); if (status !== 'disponivel') PARTES.forEach(k => { p[k] = { status, empresa: empresa || null }; }); return p; })()
+                                        : null)} />
+                                <span className="text-sm text-white font-semibold">Stand dividido em terços (A | B | C)</span>
+                            </label>
+
+                            {partes && (
+                                <div className="space-y-2.5">
+                                    <select value={partes.orientacao ?? 'vertical'}
+                                        onChange={(e) => setPartes({ ...partes, orientacao: e.target.value as Orientacao })}
+                                        className="w-full bg-white/[.07] border border-[#C8CEDA]/35 rounded-xl px-3 py-2.5 text-white text-sm outline-none focus:ring-2 focus:ring-[#D9B26A]">
+                                        {(['vertical', 'horizontal'] as Orientacao[]).map(o => (
+                                            <option key={o} className="text-[#0F2850]" value={o}>{orientacaoNomes[o]}</option>
+                                        ))}
+                                    </select>
+                                    {PARTES.map(k => (
+                                        <div key={k} className="grid grid-cols-[34px_1fr_1.3fr] gap-2 items-center">
+                                            <b className="font-display text-2xl text-[#D9B26A] text-center">{k}</b>
+                                            <select value={partes[k].status}
+                                                onChange={(e) => setPartes({ ...partes, [k]: { ...partes[k], status: e.target.value as StandStatus, empresa: e.target.value === 'disponivel' ? null : partes[k].empresa } })}
+                                                className="bg-white/[.07] border border-[#C8CEDA]/35 rounded-xl px-2 py-2.5 text-white text-sm outline-none focus:ring-2 focus:ring-[#D9B26A]">
+                                                <option className="text-[#0F2850]" value="disponivel">Disponível</option>
+                                                <option className="text-[#0F2850]" value="reservado">Reservado</option>
+                                                <option className="text-[#0F2850]" value="vendido">Vendido (pago)</option>
+                                            </select>
+                                            <input value={partes[k].empresa ?? ''} placeholder="Empresa"
+                                                onChange={(e) => setPartes({ ...partes, [k]: { ...partes[k], empresa: e.target.value || null } })}
+                                                className="bg-white/[.07] border border-[#C8CEDA]/35 rounded-xl px-3 py-2.5 text-white text-sm placeholder-[#8DA0C4] outline-none focus:ring-2 focus:ring-[#D9B26A]" />
+                                        </div>
+                                    ))}
+                                    <p className="text-xs text-[#9FB0CF]">{PARTES.map(k => `${k} = ${parteNomes[partes.orientacao ?? 'vertical'][k]}`).join(' · ')}</p>
+                                </div>
+                            )}
+
+                            {!partes && (<>
                             {/* Status select */}
                             <div>
                                 <label className="block text-sm font-medium text-[#C8CEDA] mb-2">
@@ -184,6 +223,8 @@ export default function StandModal({ stand, isOpen, onClose, onSave, isAdmin = f
                                     className="w-full bg-white/[.07] border border-[#C8CEDA]/35 rounded-xl px-4 py-3 text-white placeholder-[#8DA0C4] focus:ring-2 focus:ring-[#D9B26A] focus:border-transparent transition-all outline-none"
                                 />
                             </div>
+
+                            </>)}
 
                             {/* Tipo */}
                             <div>

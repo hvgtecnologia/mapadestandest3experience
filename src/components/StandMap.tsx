@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
-import { Stand } from '@/types/stand';
+import { Escolha, Stand } from '@/types/stand';
 import { standPositions, specialAreas, annotations, sectors, venueLines, sectorOf, SVG_W, SVG_H } from '@/data/mapLayout';
 import { standStatusColors, standStatusBorderColors, standStatusLabels, standStatusAccent, standSelectedColor } from '@/utils/standColors';
 import { StandStatus } from '@/types/stand';
@@ -11,12 +11,14 @@ interface StandMapProps {
     stands: Stand[];
     onStandClick: (stand: Stand) => void;
     selectedStandId?: string | null;
+    /** Seleção múltipla: id do stand → inteiro ou terços. */
+    selecao?: Record<string, Escolha>;
 }
 
 const MIN_ZOOM = 0.4;
 const MAX_ZOOM = 4;
 
-export default function StandMap({ stands, onStandClick, selectedStandId }: StandMapProps) {
+export default function StandMap({ stands, onStandClick, selectedStandId, selecao }: StandMapProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const svgContainerRef = useRef<HTMLDivElement>(null);
 
@@ -499,7 +501,7 @@ export default function StandMap({ stands, onStandClick, selectedStandId }: Stan
                                     position={pos}
                                     stand={stand}
                                     onClick={onStandClick}
-                                    isSelected={!!stand && stand.id === selectedStandId}
+                                    escolha={stand ? (selecao?.[stand.id] ?? (stand.id === selectedStandId ? 'inteiro' : undefined)) : undefined}
                                     isHighlighted={highlightedStand === pos.numero}
                                     isDimmed={isFiltering && !matchesFilters(pos.numero, stand)}
                                 />
@@ -520,6 +522,12 @@ export default function StandMap({ stands, onStandClick, selectedStandId }: Stan
                 <span className="flex items-center gap-1.5">
                     <i className="inline-block w-3 h-3 rounded-[3px]" style={{ background: standSelectedColor, border: '1px solid #8D692D' }} />
                     Selecionado
+                </span>
+                <span className="flex items-center gap-1.5">
+                    <i className="inline-flex w-[18px] h-3 rounded-[3px] overflow-hidden border border-[#5279AE]">
+                        <i className="flex-1 bg-[#C62828]" /><i className="flex-1 bg-[#D7E5FA] border-x border-white" /><i className="flex-1 bg-[#D7E5FA]" />
+                    </i>
+                    Vendido em terços (A | B | C)
                 </span>
                 <b className="sm:ml-auto font-semibold text-[#9FB0CF]">
                     {counts.disponivel} disponíveis · {counts.vendido} vendidos · {counts.reservado} reservados

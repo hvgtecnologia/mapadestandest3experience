@@ -122,7 +122,7 @@ addBlock(2, 570, 110, 15, 1);
 
 // ── Blocos horizontais à esquerda (2 × 7) ────────────────────
 const LEFT_X = 200;
-const LEFT_Y = [380, 490, 600, 710];
+const LEFT_Y = [626, 736, 846, 956];
 ([[3, 'Finanças'], [4, 'Casa'], [5, 'Beleza'], [6, 'Turismo']] as [number, string][]).forEach(([n, nome], i) => {
     sector(n, nome, 40, LEFT_Y[i] + 20, 150);
     addBlock(n, LEFT_X, LEFT_Y[i], 2, 7);
@@ -174,15 +174,15 @@ const mainAreas: SpecialArea[] = [
     },
     {
         id: 'lounge-t3', label: 'LOUNGE T3',
-        x: 465, y: 650, width: 50, height: 120, color: '#c08470', textColor: '#f5d0c0', fontSize: 12, borderRadius: 6, rotation: -90,
+        x: 468, y: 620, width: 80, height: 210, color: '#c08470', textColor: '#f5d0c0', fontSize: 20, borderRadius: 6, rotation: -90,
     },
     {
         id: 'banheiro', label: 'BANHEIRO QUÍMICO',
-        x: 220, y: 860, width: 200, height: 110, color: '#475569', textColor: '#e2e8f0', fontSize: 14, borderRadius: 6,
+        x: 220, y: 1075, width: 200, height: 85, color: '#475569', textColor: '#e2e8f0', fontSize: 14, borderRadius: 6,
     },
     {
         id: 'pm-mg', label: 'PM MG',
-        x: 150, y: 1160, width: 150, height: 56, color: '#1d4ed8', textColor: '#bfdbfe', fontSize: 18, borderRadius: 6,
+        x: 200, y: 1175, width: 150, height: 50, color: '#1d4ed8', textColor: '#bfdbfe', fontSize: 18, borderRadius: 6,
     },
     {
         id: 'bilheteria', label: 'BILHETERIA',
@@ -207,7 +207,7 @@ const mainAreas: SpecialArea[] = [
     })),
     {
         id: 'emerg-banheiro', label: 'EMERGÊNCIA',
-        x: 432, y: 860, width: 28, height: 90, color: '#b91c1c', textColor: '#fecaca', fontSize: 9, borderRadius: 4, rotation: -90,
+        x: 432, y: 1075, width: 28, height: 85, color: '#b91c1c', textColor: '#fecaca', fontSize: 9, borderRadius: 4, rotation: -90,
     },
     {
         id: 'emerg-industrial', label: 'EMERGÊNCIA',
@@ -226,7 +226,7 @@ const mainLines: string[] = [
     // contorno externo
     'M 40 100 L 1180 100 L 1180 430 L 1470 430 L 1470 1150 L 1250 1355 L 320 1355 L 140 1230 L 20 1230 L 20 330',
     // divisória esquerda (área dos blocos 3–6)
-    'M 190 340 L 460 340 L 460 820 L 190 820 Z',
+    'M 190 586 L 460 586 L 460 1066 L 190 1066 Z',
     // via de serviço superior
     'M 40 330 L 440 330',
 ];

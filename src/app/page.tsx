@@ -6,16 +6,32 @@ import { useStands } from '@/hooks/useStands';
 import StandMap from '@/components/StandMap';
 import StandPanel from '@/components/StandPanel';
 import DashboardStats from '@/components/DashboardStats';
-import { Stand } from '@/types/stand';
+import { Escolha, Stand } from '@/types/stand';
+import { partesLivres } from '@/utils/partes';
 
 export default function HomePage() {
   const { stands, loading, stats, updateStand } = useStands();
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  // sempre a versão mais nova do stand (reflete a reserva recém-feita)
-  const selectedStand = stands.find((s) => s.id === selectedId) ?? null;
+  // Seleção múltipla: id do stand → 'inteiro' ou terços escolhidos
+  const [selecao, setSelecao] = useState<Record<string, Escolha>>({});
+  // Stand sem parte livre que a pessoa clicou (só para mostrar quem está nele)
+  const [infoId, setInfoId] = useState<string | null>(null);
+  const infoStand = stands.find((s) => s.id === infoId) ?? null;
 
   const handleStandClick = (stand: Stand) => {
-    setSelectedId(stand.id);
+    if (partesLivres(stand).length === 0) {
+      setInfoId(stand.id);
+    } else {
+      setInfoId(null);
+      const primeiro = Object.keys(selecao).length === 0;
+      setSelecao(prev => {
+        const next = { ...prev };
+        if (next[stand.id]) delete next[stand.id];
+        // stand dividido: a pessoa escolhe os terços livres no painel
+        else next[stand.id] = stand.partes ? { partes: [], orientacao: stand.partes.orientacao ?? 'vertical' } : 'inteiro';
+        return next;
+      });
+      if (!primeiro) return;
+    }
     if (window.matchMedia('(max-width: 1023px)').matches) {
       document.getElementById('stand-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
@@ -61,14 +77,14 @@ export default function HomePage() {
       </header>
 
       <main className="relative z-10 max-w-[1490px] mx-auto p-3 sm:p-5 grid grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_370px] gap-4 lg:gap-5 items-start">
-        <StandMap stands={stands} onStandClick={handleStandClick} selectedStandId={selectedId} />
+        <StandMap stands={stands} onStandClick={handleStandClick} selecao={selecao} />
 
         <aside
           id="stand-panel"
           aria-label="Detalhes do stand"
           className="lg:sticky lg:top-4 rounded-[26px] border border-[#C8CEDA]/25 bg-[#091B3B]/70 backdrop-blur-xl shadow-[0_30px_70px_-30px_rgba(0,0,0,.6)] overflow-hidden scroll-mt-4"
         >
-          <StandPanel stand={selectedStand} onReserve={updateStand} />
+          <StandPanel stands={stands} selecao={selecao} onChange={setSelecao} info={infoStand} onReserve={updateStand} />
           <div className="border-t border-[#C8CEDA]/25 px-6 py-3 text-xs text-[#9FB0CF] flex items-center justify-between">
             <span>{stats.total} stands no evento</span>
             <span>Reserva sujeita a confirmação</span>

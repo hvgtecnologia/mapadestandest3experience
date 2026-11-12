@@ -40,25 +40,25 @@ export const standTypeBorderColors: Record<StandType, string> = {
 
 // ═══════════════════════════════════════════
 // CORES DE STATUS — o stand inteiro é pintado
-//   disponível → azul-claro · reservado → marinho · vendido → verde
+//   disponível → azul-claro · reservado → marinho · vendido → vermelho
 // ═══════════════════════════════════════════
 export const standStatusColors: Record<StandStatus, string> = {
     disponivel: '#D7E5FA',
     reservado:  '#091B3B',
-    vendido:    '#167348',
+    vendido:    '#C62828',
 };
 
 export const standStatusBorderColors: Record<StandStatus, string> = {
     disponivel: '#5279AE',
     reservado:  '#0F2850',
-    vendido:    '#0E5735',
+    vendido:    '#8E1B1B',
 };
 
 // Cor de destaque do status em fundo escuro (chips, contadores)
 export const standStatusAccent: Record<StandStatus, string> = {
     disponivel: '#8FB8FF',
     reservado:  '#D9B26A',
-    vendido:    '#5FD7A0',
+    vendido:    '#FF8A80',
 };
 
 export const standSelectedColor = '#D9B26A';

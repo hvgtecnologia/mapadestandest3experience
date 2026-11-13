@@ -471,7 +471,21 @@ export default function StandMap({ stands, onStandClick, selectedStandId, seleca
                         const h = 32;
                         const badgeR = 15;
                         const badgeW = s.hideBadge ? 0 : badgeR * 2 + 4;
-                        const fs = Math.min(14, Math.floor((s.labelW - badgeW - 14) / (s.nome.length * 0.62)));
+                        const avail = s.labelW - badgeW - 14;
+                        const nome = s.nome.toUpperCase();
+                        const fit = (len: number) => Math.min(14, Math.floor(avail / (len * 0.62)));
+                        // nome longo: quebra em duas linhas (após espaço ou "/") se ficar mais legível
+                        let linhas = [nome];
+                        let fs = fit(nome.length);
+                        if (fs < 11) {
+                            for (let k = 1; k < nome.length; k++) {
+                                const quebra = nome[k - 1] === '/' ? k : nome[k] === ' ' ? k : -1;
+                                if (quebra < 0) continue;
+                                const l1 = nome.slice(0, quebra).trim(), l2 = nome.slice(quebra).trim();
+                                const f2 = Math.min(12, fit(Math.max(l1.length, l2.length)));
+                                if (f2 > fs) { fs = f2; linhas = [l1, l2]; }
+                            }
+                        }
                         const active = sectorFilter === String(s.numero);
                         return (
                             <g key={`sector-${s.numero}`} className="select-none pointer-events-none">
@@ -486,7 +500,10 @@ export default function StandMap({ stands, onStandClick, selectedStandId, seleca
                                 </>)}
                                 <text x={s.labelX + badgeW + (s.labelW - badgeW) / 2} y={s.labelY + h / 2 + 0.5}
                                     textAnchor="middle" dominantBaseline="central" fill="#ffffff" fontSize={fs} fontWeight="800" letterSpacing="0.03em">
-                                    {s.nome.toUpperCase()}
+                                    {linhas.map((l, i) => (
+                                        <tspan key={i} x={s.labelX + badgeW + (s.labelW - badgeW) / 2}
+                                            dy={linhas.length === 1 ? 0 : i === 0 ? -fs * 0.55 : fs * 1.1}>{l}</tspan>
+                                    ))}
                                 </text>
                             </g>
                         );

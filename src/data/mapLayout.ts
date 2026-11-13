@@ -123,21 +123,21 @@ addBlock(2, 570, 110, 15, 1);
 // ── Blocos horizontais à esquerda (2 × 7) ────────────────────
 const LEFT_X = 200;
 const LEFT_Y = [626, 736, 846, 956];
-([[3, 'Finanças'], [4, 'Casa'], [5, 'Beleza'], [6, 'Turismo']] as [number, string][]).forEach(([n, nome], i) => {
-    sector(n, nome, 40, LEFT_Y[i] + 20, 150);
+([[3, 'Finanças/Prestação de Serviços'], [4, 'Casa e Lar'], [5, 'Esportes e Beleza'], [6, 'Turismo']] as [number, string][]).forEach(([n, nome], i) => {
+    sector(n, nome, 36, LEFT_Y[i] + 18, 158);
     addBlock(n, LEFT_X, LEFT_Y[i], 2, 7);
 });
 
 // ── Fileiras na frente do Centro de Eventos ──────────────────
-sector(7, 'Soluções Emp. Tecnológicas', 640, 462, 250);
+sector(7, 'Serviços e Produtos Empresariais', 640, 462, 250);
 addBlock(7, 640, 505, 1, 7);
-sector(8, 'Soluções Empresariais', 920, 462, 230);
+sector(8, 'Serviços e Produtos Empresariais', 920, 462, 230);
 addBlock(8, 935, 505, 1, 5);
 
 // ── Grade central superior (2 × 6) ───────────────────────────
 const GRID_X = [580, 700, 820, 940, 1060, 1180];
 const UP_Y = 705;
-([[9, 'Moda'], [10, 'Gestantes'], [11, 'Educação'], [12, 'Eventos'], [13, 'Esportes'], [14, 'Automotivo']] as [number, string][])
+([[9, 'Moda'], [10, 'Gestantes e Baby'], [11, 'Educação'], [12, 'Eventos'], [13, 'Saúde'], [14, 'Automotivo']] as [number, string][])
     .forEach(([n, nome], i) => {
         sector(n, nome, GRID_X[i] - 21, UP_Y - 40, 116);
         addBlock(n, GRID_X[i], UP_Y, 6, 2);
@@ -145,18 +145,18 @@ const UP_Y = 705;
 
 // ── Grade central inferior (2 × 6) ───────────────────────────
 const LOW_Y = 1000;
-([[15, 'Marketing'], [16, 'Pet'], [17, 'Agro'], [18, 'Construção'], [19, 'Saúde']] as [number, string][])
+([[15, 'Marketing e Comunicação'], [16, 'Pet'], [17, 'Construção'], [18, 'Agro'], [19, 'Saúde']] as [number, string][])
     .forEach(([n, nome], i) => {
         sector(n, nome, GRID_X[i] - 21, LOW_Y - 40, 116);
         addBlock(n, GRID_X[i], LOW_Y, 6, 2);
     });
 
-// 20 Saúde Fornecedor — 2 × 5
-sector(20, 'Saúde Fornecedor', GRID_X[5] - 21, LOW_Y - 40, 150);
+// 20 Automotivo (antigo 22) — 2 × 5
+sector(20, 'Automotivo', GRID_X[5] - 21, LOW_Y - 40, 150);
 addBlock(20, GRID_X[5], LOW_Y, 5, 2);
 
-// 21 Baby e Kids — 1 × 7
-sector(21, 'Baby e Kids', 700, 1230, 200);
+// 21 Kids e Playground — 1 × 7
+sector(21, 'Kids e Playground', 700, 1230, 200);
 addBlock(21, 700, 1272, 1, 7);
 
 const mainAreas: SpecialArea[] = [
